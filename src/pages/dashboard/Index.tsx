@@ -1,4 +1,3 @@
-
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,10 +17,15 @@ const DashboardPage = () => {
     { id: 3, pair: "USD/CAD", type: "شراء", profit: 85, date: "2024-02-18" },
   ];
 
+  const technicalIndicators = [
+    { name: "RSI", value: "62", status: "متعادل" },
+    { name: "MACD", value: "0.0023", status: "شراء" },
+    { name: "المتوسط المتحرك 200", value: "1.0842", status: "بيع" }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-hamzah-50 to-hamzah-100 dark:from-hamzah-900 dark:to-hamzah-800">
       <div className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -35,7 +39,6 @@ const DashboardPage = () => {
           </p>
         </motion.div>
 
-        {/* Portfolio Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -98,7 +101,6 @@ const DashboardPage = () => {
           </motion.div>
         </div>
 
-        {/* Recent Trades */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -131,6 +133,95 @@ const DashboardPage = () => {
             <Button className="w-full mt-4 glass-morphism hover:scale-105 smooth-transition">
               عرض جميع الصفقات
             </Button>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="mb-8"
+        >
+          <Card className="glass-morphism p-6">
+            <h2 className="text-xl font-bold mb-4 text-hamzah-800 dark:text-hamzah-100">
+              التحليل الفني
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {technicalIndicators.map((indicator, index) => (
+                <div 
+                  key={index}
+                  className="p-4 border border-hamzah-200 dark:border-hamzah-700 rounded-lg"
+                >
+                  <h3 className="text-lg font-medium text-hamzah-800 dark:text-hamzah-100">
+                    {indicator.name}
+                  </h3>
+                  <p className="text-2xl font-bold text-hamzah-600 dark:text-hamzah-300">
+                    {indicator.value}
+                  </p>
+                  <p className={`text-sm font-medium ${
+                    indicator.status === "شراء" 
+                      ? "text-green-500" 
+                      : indicator.status === "بيع" 
+                        ? "text-red-500" 
+                        : "text-yellow-500"
+                  }`}>
+                    {indicator.status}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4">
+              <Button className="w-full glass-morphism hover:scale-105 smooth-transition">
+                فتح التحليل المتقدم
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+        >
+          <Card className="glass-morphism p-6">
+            <h2 className="text-xl font-bold mb-4 text-hamzah-800 dark:text-hamzah-100">
+              الأدوات السريعة
+            </h2>
+            <div className="grid grid-cols-2 gap-4">
+              <Button className="glass-morphism hover:scale-105 smooth-transition">
+                فتح صفقة جديدة
+              </Button>
+              <Button className="glass-morphism hover:scale-105 smooth-transition">
+                إغلاق كل الصفقات
+              </Button>
+              <Button className="glass-morphism hover:scale-105 smooth-transition">
+                تعديل وقف الخسارة
+              </Button>
+              <Button className="glass-morphism hover:scale-105 smooth-transition">
+                إعدادات المحفظة
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="glass-morphism p-6">
+            <h2 className="text-xl font-bold mb-4 text-hamzah-800 dark:text-hamzah-100">
+              الإشعارات النشطة
+            </h2>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+                <span className="text-yellow-800 dark:text-yellow-200">تنبيه سعري EUR/USD</span>
+                <Button variant="link" className="text-yellow-800 dark:text-yellow-200">
+                  عرض
+                </Button>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                <span className="text-blue-800 dark:text-blue-200">تقرير يومي جاهز</span>
+                <Button variant="link" className="text-blue-800 dark:text-blue-200">
+                  عرض
+                </Button>
+              </div>
+            </div>
           </Card>
         </motion.div>
       </div>
