@@ -1,8 +1,17 @@
 
 import { motion } from "framer-motion";
-import { ChevronRight, LineChart, Shield, Zap } from "lucide-react";
+import { ChevronRight, LineChart, Shield, Zap, TrendingUp, Layers, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+
+const tradingPlatforms = [
+  { name: "Binance", logo: "🔶" },
+  { name: "MetaTrader 5", logo: "📊" },
+  { name: "TradingView", logo: "📈" },
+  { name: "IQ Option", logo: "💹" },
+  { name: "eToro", logo: "🌐" },
+  { name: "Robinhood", logo: "🎯" },
+];
 
 const Index = () => {
   return (
@@ -73,6 +82,68 @@ const Index = () => {
             </Card>
           </motion.div>
         </div>
+
+        {/* Trading Platforms Section */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="mb-16"
+        >
+          <h2 className="text-3xl font-bold text-center mb-8 text-hamzah-800 dark:text-hamzah-100">
+            منصات التداول المدعومة
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {tradingPlatforms.map((platform) => (
+              <Card 
+                key={platform.name}
+                className="glass-morphism p-4 text-center hover:scale-105 smooth-transition cursor-pointer"
+              >
+                <div className="text-4xl mb-2">{platform.logo}</div>
+                <h3 className="font-medium text-hamzah-700 dark:text-hamzah-200">
+                  {platform.name}
+                </h3>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Strategy Section */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="mb-16"
+        >
+          <h2 className="text-3xl font-bold text-center mb-8 text-hamzah-800 dark:text-hamzah-100">
+            استراتيجية التداول الذكية
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <Card className="glass-morphism p-6">
+              <TrendingUp className="w-8 h-8 mb-4 text-hamzah-600 dark:text-hamzah-300" />
+              <h3 className="text-xl font-semibold mb-2">تحليل الاتجاه</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                متوسط متحرك 200 نقطة لتحديد الاتجاه العام للسوق
+              </p>
+            </Card>
+            
+            <Card className="glass-morphism p-6">
+              <Layers className="w-8 h-8 mb-4 text-hamzah-600 dark:text-hamzah-300" />
+              <h3 className="text-xl font-semibold mb-2">نماذج الشموع</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                تحديد نماذج الشموع الانعكاسية مثل Pin Bar و Engulfing
+              </p>
+            </Card>
+            
+            <Card className="glass-morphism p-6">
+              <ArrowUpDown className="w-8 h-8 mb-4 text-hamzah-600 dark:text-hamzah-300" />
+              <h3 className="text-xl font-semibold mb-2">الدعم والمقاومة</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                تحديد آلي لمناطق الدعم والمقاومة لضبط نقاط الدخول والخروج
+              </p>
+            </Card>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
