@@ -1,4 +1,3 @@
-
 import { motion } from "framer-motion";
 import { ChevronRight, LineChart, Shield, Zap, TrendingUp, Layers, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -143,6 +142,72 @@ const Index = () => {
               </p>
             </Card>
           </div>
+        </motion.div>
+
+        {/* Risk Management Section */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2 }}
+          className="mb-16"
+        >
+          <h2 className="text-3xl font-bold text-center mb-8 text-hamzah-800 dark:text-hamzah-100">
+            إدارة المخاطر وتتبع الأداء
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="glass-morphism p-6">
+              <div className="text-3xl font-bold mb-2 text-hamzah-600 dark:text-hamzah-300">2%</div>
+              <h3 className="text-lg font-medium mb-2">الحد الأقصى للمخاطرة</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                من رأس المال لكل صفقة
+              </p>
+            </Card>
+
+            <Card className="glass-morphism p-6">
+              <div className="text-3xl font-bold mb-2 text-hamzah-600 dark:text-hamzah-300">1:3</div>
+              <h3 className="text-lg font-medium mb-2">نسبة المخاطرة/الربح</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                لكل نقطة خسارة 3 نقاط ربح
+              </p>
+            </Card>
+
+            <Card className="glass-morphism p-6">
+              <div className="text-3xl font-bold mb-2 text-hamzah-600 dark:text-hamzah-300">10-15</div>
+              <h3 className="text-lg font-medium mb-2">نقاط وقف الخسارة</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                تحت الدعم أو فوق المقاومة
+              </p>
+            </Card>
+
+            <Card className="glass-morphism p-6">
+              <div className="text-3xl font-bold mb-2 text-hamzah-600 dark:text-hamzah-300">24/7</div>
+              <h3 className="text-lg font-medium mb-2">تتبع مستمر</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                مراقبة وتحليل أداء الصفقات
+              </p>
+            </Card>
+          </div>
+        </motion.div>
+
+        {/* Call to Action */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.4 }}
+          className="text-center"
+        >
+          <Card className="glass-morphism p-8 max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold mb-4 text-hamzah-800 dark:text-hamzah-100">
+              جاهز لبدء رحلة التداول الاحترافي؟
+            </h2>
+            <p className="mb-6 text-hamzah-600 dark:text-hamzah-300">
+              انضم إلى الآلاف من المتداولين الناجحين الذين يستخدمون Hamzah Trading Pro
+            </p>
+            <Button className="glass-morphism hover:scale-105 smooth-transition px-8 py-6 text-lg">
+              سجل الآن واحصل على نسخة تجريبية
+              <ChevronRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Card>
         </motion.div>
       </div>
     </div>
