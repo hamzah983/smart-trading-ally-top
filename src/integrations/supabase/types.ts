@@ -9,7 +9,139 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          settings: Json | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trades: {
+        Row: {
+          account_id: string
+          closed_at: string | null
+          created_at: string
+          entry_price: number
+          id: string
+          lot_size: number
+          pnl: number | null
+          status: string
+          stop_loss: number | null
+          symbol: string
+          take_profit: number | null
+          type: string
+        }
+        Insert: {
+          account_id: string
+          closed_at?: string | null
+          created_at?: string
+          entry_price: number
+          id?: string
+          lot_size: number
+          pnl?: number | null
+          status?: string
+          stop_loss?: number | null
+          symbol: string
+          take_profit?: number | null
+          type: string
+        }
+        Update: {
+          account_id?: string
+          closed_at?: string | null
+          created_at?: string
+          entry_price?: number
+          id?: string
+          lot_size?: number
+          pnl?: number | null
+          status?: string
+          stop_loss?: number | null
+          symbol?: string
+          take_profit?: number | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trades_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_accounts: {
+        Row: {
+          account_name: string
+          api_key: string | null
+          api_secret: string | null
+          balance: number | null
+          created_at: string
+          equity: number | null
+          id: string
+          is_active: boolean | null
+          leverage: number | null
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          api_key?: string | null
+          api_secret?: string | null
+          balance?: number | null
+          created_at?: string
+          equity?: number | null
+          id?: string
+          is_active?: boolean | null
+          leverage?: number | null
+          platform: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          api_key?: string | null
+          api_secret?: string | null
+          balance?: number | null
+          created_at?: string
+          equity?: number | null
+          id?: string
+          is_active?: boolean | null
+          leverage?: number | null
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trading_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
