@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import DashboardPage from "./pages/dashboard/Index";
 import AuthPage from "./pages/auth/Index";
+import AccountsPage from "./pages/accounts/Index";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
 import { supabase } from "./integrations/supabase/client";
@@ -42,6 +43,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/accounts" 
+            element={
+              <ProtectedRoute>
+                <AccountsPage />
               </ProtectedRoute>
             } 
           />
