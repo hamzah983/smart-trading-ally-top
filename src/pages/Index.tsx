@@ -1,7 +1,11 @@
+
 import { motion } from "framer-motion";
-import { ChevronRight, LineChart, Shield, Zap, TrendingUp, Layers, ArrowUpDown } from "lucide-react";
+import { ChevronRight, Shield, Zap, TrendingUp, Layers, ArrowUpDown, Users, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const tradingPlatforms = [
   { name: "Binance", logo: "🔶" },
@@ -13,6 +17,34 @@ const tradingPlatforms = [
 ];
 
 const Index = () => {
+  const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      setIsLoggedIn(!!data.session);
+    };
+    
+    checkAuth();
+    
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+    
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleGetStarted = () => {
+    if (isLoggedIn) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-hamzah-50 to-hamzah-100 dark:from-hamzah-900 dark:to-hamzah-800">
       <div className="container mx-auto px-4 py-16">
@@ -29,13 +61,69 @@ const Index = () => {
           <p className="text-lg md:text-xl text-hamzah-600 dark:text-hamzah-300 mb-8 max-w-2xl mx-auto">
             منصة التداول الذكية المتكاملة للمتداولين المحترفين
           </p>
-          <Button
-            className="glass-morphism hover:scale-105 smooth-transition px-8 py-6 text-lg"
-          >
-            ابدأ التداول الآن
-            <ChevronRight className="ml-2 h-5 w-5" />
-          </Button>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Button
+              className="glass-morphism hover:scale-105 smooth-transition px-8 py-6 text-lg"
+              onClick={handleGetStarted}
+            >
+              ابدأ التداول الآن
+              <ChevronRight className="ml-2 h-5 w-5" />
+            </Button>
+            {isLoggedIn && (
+              <Button
+                variant="outline"
+                className="glass-morphism hover:scale-105 smooth-transition px-8 py-6 text-lg"
+                onClick={() => navigate('/dashboard')}
+              >
+                لوحة التحكم
+                <LineChart className="ml-2 h-5 w-5" />
+              </Button>
+            )}
+          </div>
         </motion.div>
+
+        {/* Navigation Cards for Quick Access */}
+        {isLoggedIn && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16"
+          >
+            <Card 
+              className="glass-morphism p-6 text-center hover:scale-105 smooth-transition cursor-pointer"
+              onClick={() => navigate('/accounts')}
+            >
+              <Users className="w-12 h-12 mx-auto mb-4 text-hamzah-600 dark:text-hamzah-300" />
+              <h3 className="text-xl font-semibold mb-2">إدارة الحسابات</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                إضافة وإدارة حسابات التداول الخاصة بك
+              </p>
+            </Card>
+            
+            <Card 
+              className="glass-morphism p-6 text-center hover:scale-105 smooth-transition cursor-pointer"
+              onClick={() => navigate('/trades')}
+            >
+              <LineChart className="w-12 h-12 mx-auto mb-4 text-hamzah-600 dark:text-hamzah-300" />
+              <h3 className="text-xl font-semibold mb-2">تنفيذ الصفقات</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                فتح وإدارة الصفقات بطريقة ذكية
+              </p>
+            </Card>
+            
+            <Card 
+              className="glass-morphism p-6 text-center hover:scale-105 smooth-transition cursor-pointer"
+              onClick={() => navigate('/dashboard')}
+            >
+              <TrendingUp className="w-12 h-12 mx-auto mb-4 text-hamzah-600 dark:text-hamzah-300" />
+              <h3 className="text-xl font-semibold mb-2">تحليل الأداء</h3>
+              <p className="text-hamzah-500 dark:text-hamzah-400">
+                تحليل وتتبع أداء محفظتك الاستثمارية
+              </p>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Features Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
@@ -203,8 +291,11 @@ const Index = () => {
             <p className="mb-6 text-hamzah-600 dark:text-hamzah-300">
               انضم إلى الآلاف من المتداولين الناجحين الذين يستخدمون Hamzah Trading Pro
             </p>
-            <Button className="glass-morphism hover:scale-105 smooth-transition px-8 py-6 text-lg">
-              سجل الآن واحصل على نسخة تجريبية
+            <Button 
+              className="glass-morphism hover:scale-105 smooth-transition px-8 py-6 text-lg"
+              onClick={handleGetStarted}
+            >
+              {isLoggedIn ? 'انتقل إلى لوحة التحكم' : 'سجل الآن واحصل على نسخة تجريبية'}
               <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
           </Card>
