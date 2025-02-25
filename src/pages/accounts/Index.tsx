@@ -40,9 +40,18 @@ const AccountsPage = () => {
 
   const fetchAccounts = async () => {
     try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      
+      if (!sessionData.session?.user) {
+        navigate('/auth');
+        return;
+      }
+      
       const { data, error } = await supabase
         .from("trading_accounts")
         .select("*")
+        .eq("user_id", sessionData.session.user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -66,12 +75,19 @@ const AccountsPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.from("trading_accounts").insert([
-        {
-          ...newAccount,
-          leverage: Number(newAccount.leverage),
-        },
-      ]);
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      
+      if (!sessionData.session?.user) {
+        navigate('/auth');
+        return;
+      }
+      
+      const { error } = await supabase.from("trading_accounts").insert({
+        ...newAccount,
+        leverage: Number(newAccount.leverage),
+        user_id: sessionData.session.user.id
+      });
 
       if (error) throw error;
 
