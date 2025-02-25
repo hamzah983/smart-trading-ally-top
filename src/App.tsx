@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import DashboardPage from "./pages/dashboard/Index";
 import AuthPage from "./pages/auth/Index";
 import AccountsPage from "./pages/accounts/Index";
+import TradesPage from "./pages/trades/Index";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
 import { supabase } from "./integrations/supabase/client";
@@ -51,6 +52,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <AccountsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/trades" 
+            element={
+              <ProtectedRoute>
+                <TradesPage />
               </ProtectedRoute>
             } 
           />

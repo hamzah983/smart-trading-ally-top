@@ -498,4 +498,48 @@ const TradeTable = ({ trades, loading, showCloseButton = true, onCloseTrade }: T
                   </span>
                 )}
               </TableCell>
-              <TableCell>{trade.entry
+              <TableCell>{trade.entry_price}</TableCell>
+              <TableCell>{trade.lot_size}</TableCell>
+              <TableCell>{trade.stop_loss || '—'}</TableCell>
+              <TableCell>{trade.take_profit || '—'}</TableCell>
+              <TableCell>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  trade.status === 'open' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {trade.status === 'open' ? 'مفتوحة' : 'مغلقة'}
+                </span>
+              </TableCell>
+              <TableCell>
+                {trade.pnl !== null ? (
+                  <span className={trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    {trade.pnl >= 0 ? '+' : ''}{trade.pnl}$
+                  </span>
+                ) : '—'}
+              </TableCell>
+              <TableCell>
+                {new Date(trade.created_at).toLocaleDateString('ar-SA')}
+              </TableCell>
+              {showCloseButton && trade.status === 'open' && (
+                <TableCell>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => onCloseTrade && onCloseTrade(trade.id)}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    إغلاق
+                  </Button>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+};
+
+export default TradesPage;
