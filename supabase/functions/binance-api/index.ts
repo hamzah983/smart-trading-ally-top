@@ -50,7 +50,7 @@ async function getBinanceCredentials(userId: string, accountId: string): Promise
 }
 
 // Generate signature for Binance API requests
-function generateBinanceSignature(queryString: string, apiSecret: string): string {
+function generateBinanceSignature(queryString: string, apiSecret: string): Promise<string> {
   const encoder = new TextEncoder();
   const secretKeyData = encoder.encode(apiSecret);
   const signatureData = encoder.encode(queryString);

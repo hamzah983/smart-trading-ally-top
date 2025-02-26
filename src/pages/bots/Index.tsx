@@ -1,4 +1,4 @@
-<lov-code>
+
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -912,4 +912,126 @@ const BotsPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {accounts.map((account) => (
-                      <SelectItem key={account.id} value={account.
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.account_name} ({account.platform === "mt4" ? "MT4" : account.platform || "MT5"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" onClick={fetchBots} size="icon">
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {loading && (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 mx-auto animate-spin text-hamzah-600" />
+                <p className="mt-2 text-gray-500">جاري تحميل البيانات...</p>
+              </div>
+            )}
+
+            {!loading && bots.length === 0 && (
+              <div className="text-center py-12 border border-dashed border-gray-200 rounded-lg">
+                <BrainCircuit className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                <h3 className="text-lg font-medium text-gray-800 mb-1">لا توجد روبوتات متاحة</h3>
+                <p className="text-gray-500 mb-4">قم بإنشاء روبوت جديد للبدء في التداول الآلي</p>
+                <Button onClick={() => setOpenNewBotDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  إنشاء روبوت جديد
+                </Button>
+              </div>
+            )}
+
+            {!loading && bots.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {bots.map((bot) => (
+                  <Card key={bot.id} className="overflow-hidden">
+                    <div className="bg-gray-50 p-4 border-b flex justify-between items-center">
+                      <div>
+                        <h3 className="font-semibold">{bot.name}</h3>
+                        <div className="flex items-center text-xs text-gray-500 mt-1">
+                          <div className="mr-2 px-2 py-0.5 bg-gray-200 rounded-full">
+                            {strategyTypes.find(s => s.value === bot.strategy_type)?.label || bot.strategy_type}
+                          </div>
+                          <span>•</span>
+                          <div className="mx-2">
+                            {timeframes.find(t => t.value === bot.settings.timeframe)?.label || bot.settings.timeframe}
+                          </div>
+                        </div>
+                      </div>
+                      <BotStatus status={bot.is_active} />
+                    </div>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="bg-gray-50 p-2 rounded text-center">
+                          <p className="text-xs text-gray-500">الصفقات</p>
+                          <p className="font-semibold">{bot.performance_metrics.total_trades || 0}</p>
+                        </div>
+                        <div className="bg-gray-50 p-2 rounded text-center">
+                          <p className="text-xs text-gray-500">نسبة الفوز</p>
+                          <p className="font-semibold">{bot.performance_metrics.win_rate || 0}%</p>
+                        </div>
+                        <div className="bg-gray-50 p-2 rounded text-center">
+                          <p className="text-xs text-gray-500">الربح</p>
+                          <p className="font-semibold">${bot.performance_metrics.total_profit || 0}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end space-x-2 rtl:space-x-reverse">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteBot(bot.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1 text-red-500" />
+                          حذف
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleBotStatus(bot.id, bot.is_active)}
+                        >
+                          {bot.is_active ? (
+                            <>
+                              <Pause className="h-4 w-4 mr-1" />
+                              إيقاف
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 mr-1" />
+                              تشغيل
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          إعدادات
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* إضافة منصة التداول Binance إذا كان الحساب متصلاً */}
+            {showBinanceTrading && binanceAccount && (
+              <div className="mt-8">
+                <div className="mb-4 pb-4 border-b">
+                  <h2 className="text-xl font-bold">منصة التداول المباشر</h2>
+                  <p className="text-sm text-gray-500 mt-1">يمكنك التداول مباشرة على Binance من خلال هذه الواجهة</p>
+                </div>
+                <BinanceTrading accountId={binanceAccount} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default BotsPage;
