@@ -397,16 +397,16 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
                     <div className="flex mt-1">
                       <Button
                         type="button"
-                        variant={orderSide === "BUY" ? "default" : "outline"}
-                        className={`w-1/2 ${orderSide === "BUY" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                        variant={orderSide === "BUY" ? "success" : "outline"}
+                        className="w-1/2"
                         onClick={() => setOrderSide("BUY")}
                       >
                         شراء
                       </Button>
                       <Button
                         type="button"
-                        variant={orderSide === "SELL" ? "default" : "outline"}
-                        className={`w-1/2 ${orderSide === "SELL" ? "bg-red-600 hover:bg-red-700" : ""}`}
+                        variant={orderSide === "SELL" ? "destructive" : "outline"}
+                        className="w-1/2"
                         onClick={() => setOrderSide("SELL")}
                       >
                         بيع
@@ -454,9 +454,8 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
                 </div>
                 
                 <Button
-                  className={`w-full ${
-                    orderSide === "BUY" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
-                  }`}
+                  variant={orderSide === "BUY" ? "success" : "destructive"}
+                  className="w-full"
                   onClick={submitOrder}
                   disabled={loading}
                 >
@@ -488,16 +487,16 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
                     <div className="flex mt-1">
                       <Button
                         type="button"
-                        variant={orderSide === "BUY" ? "default" : "outline"}
-                        className={`w-1/2 ${orderSide === "BUY" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                        variant={orderSide === "BUY" ? "success" : "outline"}
+                        className="w-1/2"
                         onClick={() => setOrderSide("BUY")}
                       >
                         شراء
                       </Button>
                       <Button
                         type="button"
-                        variant={orderSide === "SELL" ? "default" : "outline"}
-                        className={`w-1/2 ${orderSide === "SELL" ? "bg-red-600 hover:bg-red-700" : ""}`}
+                        variant={orderSide === "SELL" ? "destructive" : "outline"}
+                        className="w-1/2"
                         onClick={() => setOrderSide("SELL")}
                       >
                         بيع
@@ -551,9 +550,8 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
                 </div>
                 
                 <Button
-                  className={`w-full ${
-                    orderSide === "BUY" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
-                  }`}
+                  variant={orderSide === "BUY" ? "success" : "destructive"}
+                  className="w-full"
                   onClick={() => {
                     setOrderType("LIMIT");
                     submitOrder();
