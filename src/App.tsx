@@ -10,6 +10,7 @@ import DashboardPage from "./pages/dashboard/Index";
 import AuthPage from "./pages/auth/Index";
 import AccountsPage from "./pages/accounts/Index";
 import TradesPage from "./pages/trades/Index";
+import BotsPage from "./pages/bots/Index";
 import NotFound from "./pages/NotFound";
 import { useEffect, useState } from "react";
 import { supabase } from "./integrations/supabase/client";
@@ -97,6 +98,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <TradesPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/bots" 
+              element={
+                <ProtectedRoute>
+                  <BotsPage />
                 </ProtectedRoute>
               } 
             />

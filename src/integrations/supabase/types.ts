@@ -95,13 +95,21 @@ export type Database = {
           api_key: string | null
           api_secret: string | null
           balance: number | null
+          broker_name: string | null
+          broker_url: string | null
+          connection_status: boolean | null
           created_at: string
+          daily_profit_target: number | null
           equity: number | null
           id: string
           is_active: boolean | null
           is_api_verified: boolean | null
+          last_sync_time: string | null
           leverage: number | null
+          max_drawdown: number | null
           platform: string
+          risk_level: string | null
+          trading_enabled: boolean | null
           updated_at: string
           user_id: string
         }
@@ -110,13 +118,21 @@ export type Database = {
           api_key?: string | null
           api_secret?: string | null
           balance?: number | null
+          broker_name?: string | null
+          broker_url?: string | null
+          connection_status?: boolean | null
           created_at?: string
+          daily_profit_target?: number | null
           equity?: number | null
           id?: string
           is_active?: boolean | null
           is_api_verified?: boolean | null
+          last_sync_time?: string | null
           leverage?: number | null
+          max_drawdown?: number | null
           platform: string
+          risk_level?: string | null
+          trading_enabled?: boolean | null
           updated_at?: string
           user_id: string
         }
@@ -125,13 +141,21 @@ export type Database = {
           api_key?: string | null
           api_secret?: string | null
           balance?: number | null
+          broker_name?: string | null
+          broker_url?: string | null
+          connection_status?: boolean | null
           created_at?: string
+          daily_profit_target?: number | null
           equity?: number | null
           id?: string
           is_active?: boolean | null
           is_api_verified?: boolean | null
+          last_sync_time?: string | null
           leverage?: number | null
+          max_drawdown?: number | null
           platform?: string
+          risk_level?: string | null
+          trading_enabled?: boolean | null
           updated_at?: string
           user_id?: string
         }
@@ -141,6 +165,98 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_bots: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          performance_metrics: Json | null
+          risk_parameters: Json | null
+          settings: Json | null
+          strategy_type: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          performance_metrics?: Json | null
+          risk_parameters?: Json | null
+          settings?: Json | null
+          strategy_type: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          performance_metrics?: Json | null
+          risk_parameters?: Json | null
+          settings?: Json | null
+          strategy_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trading_bots_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_logs: {
+        Row: {
+          account_id: string | null
+          bot_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          log_type: string
+          message: string
+        }
+        Insert: {
+          account_id?: string | null
+          bot_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          log_type: string
+          message: string
+        }
+        Update: {
+          account_id?: string | null
+          bot_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          log_type?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trading_logs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trading_logs_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "trading_bots"
             referencedColumns: ["id"]
           },
         ]

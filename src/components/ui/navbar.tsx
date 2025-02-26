@@ -12,6 +12,8 @@ import {
   UserCircle,
   Menu,
   X,
+  BrainCircuit,
+  Zap
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "./use-toast";
@@ -73,6 +75,11 @@ export const Navbar = () => {
       name: "التداول",
       path: "/trades",
       icon: <LineChart className="h-5 w-5" />,
+    },
+    {
+      name: "الروبوتات",
+      path: "/bots",
+      icon: <BrainCircuit className="h-5 w-5" />,
     },
   ];
 
