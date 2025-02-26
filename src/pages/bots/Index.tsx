@@ -1,4 +1,4 @@
-
+<lov-code>
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
+import BinanceTrading from "@/components/BinanceTrading";
 
 interface TradingBot {
   id: string;
@@ -107,6 +108,8 @@ const BotsPage = () => {
   const [openNewBotDialog, setOpenNewBotDialog] = useState(false);
   const [openConnectDialog, setOpenConnectDialog] = useState(false);
   const { toast } = useToast();
+  const [showBinanceTrading, setShowBinanceTrading] = useState(false);
+  const [binanceAccount, setBinanceAccount] = useState<string | null>(null);
 
   const [newBot, setNewBot] = useState({
     account_id: "",
@@ -213,7 +216,7 @@ const BotsPage = () => {
         try {
           const { data, error } = await supabase
             .from("trading_accounts")
-            .select("broker_name, broker_url, api_key, api_secret, risk_level, max_drawdown, daily_profit_target, trading_enabled")
+            .select("broker_name, broker_url, api_key, api_secret, risk_level, max_drawdown, daily_profit_target, trading_enabled, platform")
             .eq("id", selectedAccount)
             .single();
           
@@ -230,6 +233,15 @@ const BotsPage = () => {
               daily_profit_target: data.daily_profit_target || 2,
               trading_enabled: data.trading_enabled || false
             });
+            
+            // التحقق مما إذا كان الحساب هو حساب Binance
+            if (data.platform === "binance" && data.api_key && data.api_secret) {
+              setBinanceAccount(selectedAccount);
+              setShowBinanceTrading(true);
+            } else {
+              setShowBinanceTrading(false);
+              setBinanceAccount(null);
+            }
           }
         } catch (error: any) {
           console.error("Error fetching account settings:", error);
@@ -404,6 +416,7 @@ const BotsPage = () => {
           daily_profit_target: connectSettings.daily_profit_target,
           trading_enabled: connectSettings.trading_enabled,
           connection_status: true,
+          platform: connectSettings.broker_name.toLowerCase(), // إضافة منصة التداول
           last_sync_time: new Date().toISOString()
         })
         .eq("id", selectedAccount);
@@ -417,6 +430,12 @@ const BotsPage = () => {
       
       setOpenConnectDialog(false);
       fetchAccounts();
+      
+      // التحقق مما إذا كان الوسيط هو Binance، وتفعيل واجهة Binance
+      if (connectSettings.broker_name.toLowerCase() === 'binance') {
+        setBinanceAccount(selectedAccount);
+        setShowBinanceTrading(true);
+      }
       
       // تسجيل ربط الحساب في السجل
       await supabase.from("trading_logs").insert({
@@ -893,195 +912,4 @@ const BotsPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {accounts.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.account_name} ({account.platform === "mt4" ? "MT4" : "MT5"})
-                        {account.connection_status && " ✓"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="icon" onClick={fetchBots}>
-                  <RefreshCw className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* عرض حالة الاتصال للحساب المحدد */}
-            {selectedAccount && accounts.length > 0 && (
-              <div className="mb-6">
-                {(() => {
-                  const account = accounts.find(a => a.id === selectedAccount);
-                  return (
-                    <div className={`p-4 rounded-md ${account?.connection_status ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
-                      <div className="flex items-start">
-                        {account?.connection_status ? (
-                          <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 mr-2" />
-                        ) : (
-                          <AlertCircle className="w-5 h-5 text-yellow-500 mt-0.5 mr-2" />
-                        )}
-                        <div>
-                          <p className={`font-medium ${account?.connection_status ? 'text-green-800' : 'text-yellow-800'}`}>
-                            {account?.connection_status ? `متصل بـ ${account.broker_name || 'الوسيط'}` : 'غير متصل بمنصة التداول'}
-                          </p>
-                          <p className="text-sm mt-1">
-                            {account?.connection_status
-                              ? `التداول الآلي: ${account.trading_enabled ? 'مفعل' : 'معطل'}`
-                              : 'قم بربط الحساب بالوسيط الخاص بك لبدء التداول الآلي'
-                            }
-                          </p>
-                        </div>
-                        <div className="mr-auto">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setOpenConnectDialog(true)}
-                          >
-                            {account?.connection_status ? 'تعديل الإعدادات' : 'اتصال بالوسيط'}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin" />
-              </div>
-            ) : bots.length === 0 ? (
-              <div className="text-center py-12">
-                <BrainCircuit className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">لا توجد روبوتات بعد</h3>
-                <p className="text-gray-500 mb-4">قم بإنشاء روبوت تداول آلي جديد للبدء</p>
-                <Button onClick={() => setOpenNewBotDialog(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  إنشاء روبوت جديد
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {bots.map((bot) => (
-                  <Card key={bot.id} className="overflow-hidden">
-                    <div className={`h-2 ${bot.is_active ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-lg font-bold mb-1">{bot.name}</h3>
-                          <div className="flex items-center space-x-2 rtl:space-x-reverse text-sm text-gray-500 mb-4">
-                            <span>استراتيجية: {
-                              strategyTypes.find(s => s.value === bot.strategy_type)?.label || bot.strategy_type
-                            }</span>
-                            <span>•</span>
-                            <span>الإطار: {
-                              timeframes.find(t => t.value === bot.settings.timeframe)?.label || bot.settings.timeframe
-                            }</span>
-                          </div>
-                        </div>
-                        <BotStatus status={bot.is_active} />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="space-y-1">
-                          <p className="text-sm text-gray-500">معدل الربح</p>
-                          <div className="flex items-end space-x-1 rtl:space-x-reverse">
-                            <span className="text-xl font-bold">
-                              {bot.performance_metrics.win_rate || 0}%
-                            </span>
-                          </div>
-                          <Progress 
-                            value={bot.performance_metrics.win_rate || 0} 
-                            className="h-1.5 mt-1" 
-                          />
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <p className="text-sm text-gray-500">الربح الإجمالي</p>
-                          <div className="flex items-end space-x-1 rtl:space-x-reverse">
-                            <span className={`text-xl font-bold ${(bot.performance_metrics.total_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              ${bot.performance_metrics.total_profit || 0}
-                            </span>
-                          </div>
-                          <div className="h-1.5 mt-1 bg-gray-100 rounded-full">
-                            <div 
-                              className={`h-full rounded-full ${(bot.performance_metrics.total_profit || 0) >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
-                              style={{ width: `${Math.min(Math.abs(bot.performance_metrics.total_profit || 0) / 10 * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-3 gap-2 mb-4">
-                        <div className="rounded-md bg-gray-50 p-2 text-center">
-                          <p className="text-xs text-gray-500">الصفقات</p>
-                          <p className="font-medium">{bot.performance_metrics.total_trades || 0}</p>
-                        </div>
-                        <div className="rounded-md bg-green-50 p-2 text-center">
-                          <p className="text-xs text-green-600">رابحة</p>
-                          <p className="font-medium text-green-700">{bot.performance_metrics.profitable_trades || 0}</p>
-                        </div>
-                        <div className="rounded-md bg-red-50 p-2 text-center">
-                          <p className="text-xs text-red-600">خاسرة</p>
-                          <p className="font-medium text-red-700">{bot.performance_metrics.losing_trades || 0}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        <Button
-                          variant={bot.is_active ? "destructive" : "default"}
-                          size="sm"
-                          onClick={() => handleToggleBotStatus(bot.id, bot.is_active)}
-                        >
-                          {bot.is_active ? (
-                            <>
-                              <Pause className="w-4 h-4 mr-1" />
-                              إيقاف
-                            </>
-                          ) : (
-                            <>
-                              <Play className="w-4 h-4 mr-1" />
-                              تشغيل
-                            </>
-                          )}
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Settings className="w-4 h-4 mr-1" />
-                          الإعدادات
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                        >
-                          <BarChart3 className="w-4 h-4 mr-1" />
-                          الأداء
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => handleDeleteBot(bot.id)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          حذف
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-};
-
-export default BotsPage;
+                      <SelectItem key={account.id} value={account.
