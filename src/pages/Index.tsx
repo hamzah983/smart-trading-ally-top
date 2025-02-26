@@ -498,3 +498,153 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Card className="glass-morphism p-6">
               <div className="text-center mb-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 mx-auto flex items-center justify-center text-white text-2xl font-bold">
+                  م.أ
+                </div>
+              </div>
+              <p className="text-hamzah-500 dark:text-hamzah-400 mb-4 italic">
+                "بدأت بمبلغ 5000 دولار فقط، وباستخدام استراتيجيات إدارة المخاطر تمكنت من تنمية محفظتي إلى 45,000 دولار خلال سنة واحدة."
+              </p>
+              <p className="font-medium text-hamzah-700 dark:text-hamzah-200 text-right">
+                - محمد، الرياض
+              </p>
+            </Card>
+            
+            <Card className="glass-morphism p-6">
+              <div className="text-center mb-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-green-400 to-green-600 mx-auto flex items-center justify-center text-white text-2xl font-bold">
+                  س.م
+                </div>
+              </div>
+              <p className="text-hamzah-500 dark:text-hamzah-400 mb-4 italic">
+                "النظام الآلي ساعدني على تنفيذ الصفقات بدقة وبدون عواطف. خلال 6 أشهر حققت عائد بنسبة 32% على استثماراتي."
+              </p>
+              <p className="font-medium text-hamzah-700 dark:text-hamzah-200 text-right">
+                - سارة، دبي
+              </p>
+            </Card>
+            
+            <Card className="glass-morphism p-6">
+              <div className="text-center mb-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-400 to-purple-600 mx-auto flex items-center justify-center text-white text-2xl font-bold">
+                  أ.ع
+                </div>
+              </div>
+              <p className="text-hamzah-500 dark:text-hamzah-400 mb-4 italic">
+                "أدوات التحليل الفني المتقدمة ساعدتني على اكتشاف فرص استثمارية لم أكن لأراها. أصبحت الآن متداول بدوام كامل."
+              </p>
+              <p className="font-medium text-hamzah-700 dark:text-hamzah-200 text-right">
+                - أحمد، القاهرة
+              </p>
+            </Card>
+          </div>
+        </motion.div>
+
+        {/* نمو الاستثمار */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2 }}
+          className="mb-16"
+        >
+          <h2 className="text-3xl font-bold text-center mb-8 text-hamzah-800 dark:text-hamzah-100">
+            كيف تنمو استثماراتك مع خطط النمو المدروسة
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <Card className="glass-morphism p-6 border-t-4 border-blue-500">
+              <h3 className="text-xl font-semibold mb-4 text-center">المستوى الأول: البداية</h3>
+              <ul className="space-y-2 text-hamzah-600 dark:text-hamzah-300">
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  رأس مال صغير (1000$-5000$)
+                </li>
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  مخاطرة 1% من المحفظة لكل صفقة
+                </li>
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  نمو شهري مستهدف 5-7%
+                </li>
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  التركيز على التعلم وبناء الخبرة
+                </li>
+              </ul>
+            </Card>
+            
+            <Card className="glass-morphism p-6 border-t-4 border-purple-500">
+              <h3 className="text-xl font-semibold mb-4 text-center">المستوى الثاني: النمو</h3>
+              <ul className="space-y-2 text-hamzah-600 dark:text-hamzah-300">
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  رأس مال متوسط (5000$-20000$)
+                </li>
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  مخاطرة 1.5% من المحفظة لكل صفقة
+                </li>
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  نمو شهري مستهدف 7-10%
+                </li>
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  تنويع الاستراتيجيات والأصول
+                </li>
+              </ul>
+            </Card>
+            
+            <Card className="glass-morphism p-6 border-t-4 border-yellow-500">
+              <h3 className="text-xl font-semibold mb-4 text-center">المستوى الثالث: الثروة</h3>
+              <ul className="space-y-2 text-hamzah-600 dark:text-hamzah-300">
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  رأس مال كبير (أكثر من 20000$)
+                </li>
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  مخاطرة 2% من المحفظة لكل صفقة
+                </li>
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  نمو شهري مستهدف 10-15%
+                </li>
+                <li className="flex items-start">
+                  <div className="mr-2 mt-1 text-green-500">✓</div>
+                  استخدام الرافعة المالية بحكمة
+                </li>
+              </ul>
+            </Card>
+          </div>
+        </motion.div>
+
+        {/* Call to Action */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.4 }}
+          className="text-center"
+        >
+          <Card className="glass-morphism p-8 max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold mb-4 text-hamzah-800 dark:text-hamzah-100">
+              جاهز لبدء رحلة بناء ثروتك؟
+            </h2>
+            <p className="mb-6 text-hamzah-600 dark:text-hamzah-300">
+              انضم إلى الآلاف من المتداولين الناجحين الذين حققوا استقلالهم المالي مع Hamzah Trading Pro
+            </p>
+            <Button 
+              className="glass-morphism hover:scale-105 smooth-transition px-8 py-6 text-lg"
+              onClick={handleGetStarted}
+            >
+              {isLoggedIn ? 'انتقل إلى لوحة التحكم' : 'ابدأ رحلة الثراء الآن'}
+              <ChevronRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Card>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default Index;

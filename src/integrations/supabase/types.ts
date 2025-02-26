@@ -99,6 +99,7 @@ export type Database = {
           equity: number | null
           id: string
           is_active: boolean | null
+          is_api_verified: boolean | null
           leverage: number | null
           platform: string
           updated_at: string
@@ -113,6 +114,7 @@ export type Database = {
           equity?: number | null
           id?: string
           is_active?: boolean | null
+          is_api_verified?: boolean | null
           leverage?: number | null
           platform: string
           updated_at?: string
@@ -127,6 +129,7 @@ export type Database = {
           equity?: number | null
           id?: string
           is_active?: boolean | null
+          is_api_verified?: boolean | null
           leverage?: number | null
           platform?: string
           updated_at?: string
