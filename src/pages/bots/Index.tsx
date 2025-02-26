@@ -15,7 +15,6 @@ import {
   Zap,
   Shield,
   TrendingUp,
-  FileBar,
   BarChart3,
   RefreshCw,
   Trash2,
@@ -181,7 +180,16 @@ const BotsPage = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setBots(data || []);
+
+      // تحويل البيانات من Json إلى Record<string, any>
+      const formattedBots = data?.map(bot => ({
+        ...bot,
+        settings: bot.settings as Record<string, any>,
+        risk_parameters: bot.risk_parameters as Record<string, any>,
+        performance_metrics: bot.performance_metrics as Record<string, any>
+      })) || [];
+
+      setBots(formattedBots);
     } catch (error: any) {
       toast({
         variant: "destructive",
