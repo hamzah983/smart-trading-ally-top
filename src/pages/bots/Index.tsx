@@ -111,6 +111,7 @@ const BotsPage = () => {
   const { toast } = useToast();
   const [showBinanceTrading, setShowBinanceTrading] = useState(false);
   const [binanceAccount, setBinanceAccount] = useState<string | null>(null);
+  const [creatingNewAccount, setCreatingNewAccount] = useState(false);
 
   const [newBot, setNewBot] = useState({
     account_id: "",
@@ -252,6 +253,55 @@ const BotsPage = () => {
       getAccountSettings();
     }
   }, [selectedAccount]);
+
+  const createNewAccount = async () => {
+    try {
+      setCreatingNewAccount(true);
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      
+      if (!sessionData.session?.user) {
+        throw new Error("يجب تسجيل الدخول لإنشاء حساب");
+      }
+
+      // إنشاء حساب جديد
+      const { data, error } = await supabase
+        .from("trading_accounts")
+        .insert({
+          user_id: sessionData.session.user.id,
+          account_name: "حساب بينانس",
+          platform: "binance",
+          is_active: true,
+          balance: 0,
+          equity: 0,
+          connection_status: false
+        })
+        .select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        toast({
+          title: "تم إنشاء حساب جديد بنجاح",
+        });
+        
+        // تحديث القائمة وتحديد الحساب الجديد
+        await fetchAccounts();
+        setSelectedAccount(data[0].id);
+        
+        // فتح نافذة الربط تلقائيًا
+        setOpenConnectDialog(true);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "خطأ في إنشاء الحساب",
+        description: error.message,
+      });
+    } finally {
+      setCreatingNewAccount(false);
+    }
+  };
 
   const handleCreateBot = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -419,6 +469,14 @@ const BotsPage = () => {
         throw new Error("الرجاء إدخال مفاتيح API بشكل صحيح");
       }
       
+      if (!selectedAccount || selectedAccount.trim() === '') {
+        // في حالة عدم وجود حساب محدد، نقوم بإنشاء حساب جديد أولاً
+        await createNewAccount();
+        if (!selectedAccount) {
+          throw new Error("لا يوجد حساب محدد. الرجاء إنشاء حساب أو تحديد حساب موجود أولاً.");
+        }
+      }
+      
       // تحديث الحساب في قاعدة البيانات
       const { error } = await supabase
         .from("trading_accounts")
@@ -505,6 +563,44 @@ const BotsPage = () => {
                 <DialogTitle>ربط حساب التداول بالوسيط</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleConnectBroker} className="space-y-4 py-4">
+                <div className="grid grid-cols-1 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="account">الحساب</Label>
+                    {accounts.length > 0 ? (
+                      <Select
+                        value={selectedAccount}
+                        onValueChange={(value) => setSelectedAccount(value)}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="اختر الحساب" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accounts.map((account) => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.account_name} ({account.platform || "حساب جديد"})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                        <p className="text-sm text-gray-500">لم يتم العثور على حسابات</p>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={createNewAccount}
+                          disabled={creatingNewAccount}
+                        >
+                          {creatingNewAccount && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                          إنشاء حساب جديد
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="broker_name">اسم الوسيط</Label>

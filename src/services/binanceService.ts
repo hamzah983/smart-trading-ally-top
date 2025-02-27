@@ -55,6 +55,10 @@ export interface BinanceOrderResponse {
 // استدعاء دالة Edge Function
 async function callBinanceApi(accountId: string, action: string, params?: any) {
   try {
+    if (!accountId || accountId.trim() === '') {
+      throw new Error("معرف الحساب مطلوب: الرجاء تحديد حساب صالح");
+    }
+    
     const { data, error } = await supabase.functions.invoke('binance-api', {
       body: {
         accountId,
