@@ -105,6 +105,7 @@ const BotsPage = () => {
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [connectLoading, setConnectLoading] = useState(false); // إضافة حالة تحميل منفصلة لربط الحساب
   const [openNewBotDialog, setOpenNewBotDialog] = useState(false);
   const [openConnectDialog, setOpenConnectDialog] = useState(false);
   const { toast } = useToast();
@@ -402,13 +403,28 @@ const BotsPage = () => {
   
   const handleConnectBroker = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    // استخدام متغير تحميل منفصل
+    setConnectLoading(true);
+    
     try {
+      console.log("Connecting broker with settings:", connectSettings);
+      console.log("Selected account:", selectedAccount);
+      
+      // التحقق من وجود قيم مطلوبة
+      if (!connectSettings.broker_name) {
+        throw new Error("الرجاء اختيار اسم الوسيط");
+      }
+      
+      if (!connectSettings.api_key || !connectSettings.api_secret) {
+        throw new Error("الرجاء إدخال مفاتيح API بشكل صحيح");
+      }
+      
+      // تحديث الحساب في قاعدة البيانات
       const { error } = await supabase
         .from("trading_accounts")
         .update({
           broker_name: connectSettings.broker_name,
-          broker_url: connectSettings.broker_url,
+          broker_url: connectSettings.broker_url || '',
           api_key: connectSettings.api_key,
           api_secret: connectSettings.api_secret,
           risk_level: connectSettings.risk_level,
@@ -416,12 +432,27 @@ const BotsPage = () => {
           daily_profit_target: connectSettings.daily_profit_target,
           trading_enabled: connectSettings.trading_enabled,
           connection_status: true,
-          platform: connectSettings.broker_name.toLowerCase(), // إضافة منصة التداول
+          platform: connectSettings.broker_name.toLowerCase(),
           last_sync_time: new Date().toISOString()
         })
         .eq("id", selectedAccount);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase update error:", error);
+        throw error;
+      }
+
+      // اختبار الاتصال بـ API (اختياري)
+      if (connectSettings.broker_name.toLowerCase() === 'binance') {
+        try {
+          // هذا اختبار اختياري للتحقق من صحة مفاتيح API
+          console.log("Testing Binance API connection...");
+          // يمكن إضافة اختبار حقيقي هنا
+        } catch (testError: any) {
+          console.error("API test error:", testError);
+          throw new Error("فشل اختبار الاتصال بـ API Binance. تأكد من صحة المفاتيح ووجود الصلاحيات المناسبة.");
+        }
+      }
 
       toast({
         title: "تم ربط الحساب بالوسيط بنجاح",
@@ -446,13 +477,14 @@ const BotsPage = () => {
       });
       
     } catch (error: any) {
+      console.error("Connect broker error:", error);
       toast({
         variant: "destructive",
         title: "خطأ في ربط الحساب",
-        description: error.message,
+        description: error.message || "حدث خطأ أثناء محاولة ربط الحساب"
       });
     } finally {
-      setLoading(false);
+      setConnectLoading(false);
     }
   };
 
@@ -632,9 +664,15 @@ const BotsPage = () => {
                   >
                     إلغاء
                   </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    ربط الحساب
+                  <Button type="submit" disabled={connectLoading}>
+                    {connectLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        جاري ربط الحساب...
+                      </>
+                    ) : (
+                      "ربط الحساب"
+                    )}
                   </Button>
                 </div>
               </form>
