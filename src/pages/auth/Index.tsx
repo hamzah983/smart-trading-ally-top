@@ -41,15 +41,36 @@ const AuthPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      // First we sign up the user
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          // This tells Supabase we don't want to wait for email confirmation
+          emailRedirectTo: window.location.origin + "/dashboard",
+          data: {
+            email_confirmed: true, // Add metadata indicating email is confirmed
+          }
+        }
+      });
+      
+      if (signUpError) throw signUpError;
+      
+      // Then automatically sign them in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) throw error;
-      toast({
-        title: "تم إنشاء الحساب بنجاح",
-        description: "يرجى تفعيل حسابك من خلال الرابط المرسل إلى بريدك الإلكتروني",
-      });
+      
+      if (signInError) {
+        toast({
+          title: "تم إنشاء الحساب بنجاح",
+          description: "تم إنشاء الحساب لكن حدث خطأ في تسجيل الدخول التلقائي. يرجى تسجيل الدخول يدويًا.",
+        });
+      } else {
+        // Redirect to dashboard after successful auto-login
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
