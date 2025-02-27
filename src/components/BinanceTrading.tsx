@@ -62,6 +62,7 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
     prices: false,
     orders: false
   });
+  const [error, setError] = useState<string | null>(null);
   
   const { toast } = useToast();
 
@@ -84,14 +85,17 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
   // الحصول على معلومات الحساب
   const fetchAccountInfo = async () => {
     try {
+      setError(null);
       setRefreshing(prev => ({ ...prev, account: true }));
       const data = await getBinanceAccountInfo(accountId);
       setAccountInfo(data);
     } catch (error: any) {
+      console.error("Binance Account Info Error:", error);
+      setError(`خطأ في جلب معلومات الحساب: ${error.message || 'Edge Function returned a non-2xx status code'}`);
       toast({
         variant: "destructive",
         title: "خطأ في جلب معلومات الحساب",
-        description: error.message
+        description: error.message || "تحقق من اتصال API وصلاحيات المفاتيح"
       });
     } finally {
       setRefreshing(prev => ({ ...prev, account: false }));
@@ -105,10 +109,11 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
       const data = await getBinancePrices(accountId, commonPairs);
       setPrices(data);
     } catch (error: any) {
+      console.error("Binance Prices Error:", error);
       toast({
         variant: "destructive",
         title: "خطأ في جلب الأسعار",
-        description: error.message
+        description: error.message || "تحقق من اتصال API"
       });
     } finally {
       setRefreshing(prev => ({ ...prev, prices: false }));
@@ -122,10 +127,11 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
       const data = await getBinanceOpenOrders(accountId);
       setOpenOrders(data);
     } catch (error: any) {
+      console.error("Binance Open Orders Error:", error);
       toast({
         variant: "destructive",
         title: "خطأ في جلب الطلبات المفتوحة",
-        description: error.message
+        description: error.message || "تحقق من اتصال API"
       });
     } finally {
       setRefreshing(prev => ({ ...prev, orders: false }));
@@ -136,6 +142,7 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
   const submitOrder = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // التحقق من المدخلات
       if (!orderQuantity || parseFloat(orderQuantity) <= 0) {
@@ -176,10 +183,12 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
       fetchOpenOrders();
       
     } catch (error: any) {
+      console.error("Submit Order Error:", error);
+      setError(`خطأ في إرسال الطلب: ${error.message || "تحقق من إعدادات API"}`);
       toast({
         variant: "destructive",
         title: "خطأ في إرسال الطلب",
-        description: error.message
+        description: error.message || "تحقق من صلاحيات API للتداول"
       });
     } finally {
       setLoading(false);
@@ -189,6 +198,7 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
   // إلغاء طلب
   const handleCancelOrder = async (symbol: string, orderId: number) => {
     try {
+      setError(null);
       await cancelBinanceOrder(accountId, symbol, orderId);
       
       toast({
@@ -199,10 +209,11 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
       fetchOpenOrders();
       
     } catch (error: any) {
+      console.error("Cancel Order Error:", error);
       toast({
         variant: "destructive",
         title: "خطأ في إلغاء الطلب",
-        description: error.message
+        description: error.message || "تعذر إلغاء الطلب"
       });
     }
   };
@@ -278,6 +289,24 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
           </Button>
         </div>
       </div>
+
+      {/* عرض الخطأ إذا وجد */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 mt-0.5 mr-2" />
+            <span>{error}</span>
+          </div>
+          <div className="mt-2 text-sm">
+            <p>تأكد من:</p>
+            <ul className="list-disc list-inside pl-2">
+              <li>صلاحية مفاتيح API</li>
+              <li>تفعيل صلاحيات القراءة والتداول</li>
+              <li>إضافة عنوان IP الحالي إلى القائمة البيضاء</li>
+            </ul>
+          </div>
+        </div>
+      )}
       
       {/* معلومات الحساب */}
       <Card>
@@ -328,8 +357,17 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
             </div>
           ) : (
             <div className="text-center py-6">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-              <p>جاري تحميل معلومات الحساب...</p>
+              {refreshing.account ? (
+                <>
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                  <p>جاري تحميل معلومات الحساب...</p>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+                  <p>لم يتم العثور على معلومات الحساب. اضغط على زر "تحديث الحساب" للمحاولة مرة أخرى.</p>
+                </>
+              )}
             </div>
           )}
         </CardContent>
@@ -341,25 +379,41 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
           <CardTitle className="text-lg">أسعار العملات الرقمية</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-5 gap-4">
-            {prices.map(price => (
-              <div 
-                key={price.symbol} 
-                className={`p-3 rounded-lg cursor-pointer border-2 transition-all
-                  ${selectedSymbol === price.symbol 
-                    ? 'border-hamzah-500 bg-hamzah-50' 
-                    : 'border-transparent hover:bg-gray-50'
-                  }`}
-                onClick={() => setSelectedSymbol(price.symbol)}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">{price.symbol.replace("USDT", "")}</span>
-                  <span className="text-xs text-gray-500">USDT</span>
+          {prices.length > 0 ? (
+            <div className="grid grid-cols-5 gap-4">
+              {prices.map(price => (
+                <div 
+                  key={price.symbol} 
+                  className={`p-3 rounded-lg cursor-pointer border-2 transition-all
+                    ${selectedSymbol === price.symbol 
+                      ? 'border-hamzah-500 bg-hamzah-50' 
+                      : 'border-transparent hover:bg-gray-50'
+                    }`}
+                  onClick={() => setSelectedSymbol(price.symbol)}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{price.symbol.replace("USDT", "")}</span>
+                    <span className="text-xs text-gray-500">USDT</span>
+                  </div>
+                  <p className="text-lg font-bold mt-1">{parseFloat(price.price).toFixed(2)}</p>
                 </div>
-                <p className="text-lg font-bold mt-1">{parseFloat(price.price).toFixed(2)}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              {refreshing.prices ? (
+                <>
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                  <p>جاري تحميل الأسعار...</p>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+                  <p>لم يتم العثور على أسعار. اضغط على زر "تحديث الأسعار" للمحاولة مرة أخرى.</p>
+                </>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
       
@@ -456,8 +510,11 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
                 <Button
                   variant={orderSide === "BUY" ? "success" : "destructive"}
                   className="w-full"
-                  onClick={submitOrder}
-                  disabled={loading}
+                  onClick={() => {
+                    setOrderType("MARKET");
+                    submitOrder();
+                  }}
+                  disabled={loading || !accountInfo}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {orderSide === "BUY" ? "شراء" : "بيع"} {selectedSymbol.replace("USDT", "")}
@@ -556,7 +613,7 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
                     setOrderType("LIMIT");
                     submitOrder();
                   }}
-                  disabled={loading}
+                  disabled={loading || !accountInfo}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {orderSide === "BUY" ? "شراء" : "بيع"} بسعر محدد
@@ -621,7 +678,14 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
             </Table>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              لا توجد طلبات مفتوحة حالياً
+              {refreshing.orders ? (
+                <>
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  <p>جاري تحميل الطلبات...</p>
+                </>
+              ) : (
+                "لا توجد طلبات مفتوحة حالياً"
+              )}
             </div>
           )}
         </CardContent>
