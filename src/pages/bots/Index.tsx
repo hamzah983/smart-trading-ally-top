@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { 
   Loader2, Plus, Power, LineChart, Activity, Settings2, AlertTriangle, 
   CheckCircle2, Play, Pause, Trash2, BarChart4, BrainCircuit, Clock, 
-  Calendar, TrendingUp, Info, HelpCircle, ArrowUpRight
+  Calendar, TrendingUp, Info, HelpCircle, ArrowUpRight, X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +20,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
+import { useNavigate } from "react-router-dom";
 
 interface TradingBot {
   id: string;
@@ -41,6 +42,7 @@ interface TradingAccount {
 }
 
 const BotsPage = () => {
+  const navigate = useNavigate();
   const [bots, setBots] = useState<TradingBot[]>([]);
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [loading, setLoading] = useState(true);
