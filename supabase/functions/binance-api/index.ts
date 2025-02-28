@@ -189,6 +189,30 @@ async function handler(req: Request) {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 
+      case 'get_open_orders':
+        // Get open orders
+        const openOrdersResult = await getBinanceOpenOrders(apiKey, apiSecret)
+        return new Response(JSON.stringify(openOrdersResult), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+
+      case 'cancel_order':
+        // Cancel an order
+        if (!data.symbol || !data.orderId) {
+          throw new Error('Missing required parameters to cancel order')
+        }
+        
+        const cancelResult = await cancelBinanceOrder(
+          apiKey,
+          apiSecret,
+          data.symbol,
+          data.orderId
+        )
+        
+        return new Response(JSON.stringify(cancelResult), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+
       default:
         throw new Error(`Unknown action: ${action}`)
     }
@@ -436,6 +460,67 @@ async function updateBinanceStopLoss(
       success: true, 
       stopLossOrderId: slData.orderId,
       message: 'Stop loss updated successfully' 
+    }
+  } catch (error) {
+    return { success: false, message: error.message }
+  }
+}
+
+// Function to get open orders
+async function getBinanceOpenOrders(apiKey: string, apiSecret: string) {
+  try {
+    const timestamp = Date.now()
+    let queryString = `timestamp=${timestamp}`
+    
+    const signature = await createSignature(queryString, apiSecret)
+    queryString += `&signature=${signature}`
+    
+    const response = await fetch(`https://api.binance.com/api/v3/openOrders?${queryString}`, {
+      method: 'GET',
+      headers: {
+        'X-MBX-APIKEY': apiKey,
+      },
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { success: false, message: errorData.msg || 'Failed to get open orders' }
+    }
+    
+    const orders = await response.json()
+    return { 
+      success: true, 
+      orders: orders
+    }
+  } catch (error) {
+    return { success: false, message: error.message }
+  }
+}
+
+// Function to cancel an order
+async function cancelBinanceOrder(apiKey: string, apiSecret: string, symbol: string, orderId: number) {
+  try {
+    const timestamp = Date.now()
+    let queryString = `symbol=${symbol}&orderId=${orderId}&timestamp=${timestamp}`
+    
+    const signature = await createSignature(queryString, apiSecret)
+    queryString += `&signature=${signature}`
+    
+    const response = await fetch(`https://api.binance.com/api/v3/order?${queryString}`, {
+      method: 'DELETE',
+      headers: {
+        'X-MBX-APIKEY': apiKey,
+      },
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { success: false, message: errorData.msg || 'Failed to cancel order' }
+    }
+    
+    return { 
+      success: true, 
+      message: 'Order cancelled successfully' 
     }
   } catch (error) {
     return { success: false, message: error.message }

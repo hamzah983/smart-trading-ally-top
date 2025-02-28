@@ -22,23 +22,43 @@ import {
 } from "lucide-react";
 
 import { 
-  getBinanceAccountInfo, 
-  getBinancePrices, 
-  getBinanceOpenOrders,
-  placeBinanceOrder, 
-  cancelBinanceOrder,
-  getAssetBalance,
-  parsePrice,
-  parseQuantity,
-  calculateOrderValue,
-  calculatePositionSize,
-  BinanceAccountInfo,
-  BinancePrice,
-  BinanceOrderResponse
+  getAccountInfo, 
+  placeOrder, 
+  TradingAccount,
+  PlaceOrderParams
 } from "@/services/binanceService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BinanceTradingProps {
   accountId: string;
+}
+
+interface BinanceAccountInfo {
+  success: boolean;
+  totalBalance?: number;
+  totalEquity?: number;
+  balances?: Array<{
+    asset: string;
+    free: string;
+    locked: string;
+  }>;
+  positions?: any[];
+  message?: string;
+}
+
+interface BinancePrice {
+  symbol: string;
+  price: string;
+}
+
+interface BinanceOrderResponse {
+  orderId: number;
+  symbol: string;
+  side: string;
+  type: string;
+  price: string;
+  origQty: string;
+  status: string;
 }
 
 const commonPairs = [
@@ -87,7 +107,7 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
     try {
       setError(null);
       setRefreshing(prev => ({ ...prev, account: true }));
-      const data = await getBinanceAccountInfo(accountId);
+      const data = await getAccountInfo(accountId);
       setAccountInfo(data);
     } catch (error: any) {
       console.error("Binance Account Info Error:", error);
@@ -106,8 +126,21 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
   const fetchPrices = async () => {
     try {
       setRefreshing(prev => ({ ...prev, prices: true }));
-      const data = await getBinancePrices(accountId, commonPairs);
-      setPrices(data);
+      
+      // استخدم واجهة برمجة التطبيقات العامة لـ Binance للحصول على الأسعار
+      const response = await fetch('https://api.binance.com/api/v3/ticker/price');
+      if (!response.ok) {
+        throw new Error('Failed to fetch prices from Binance API');
+      }
+      
+      const allPrices = await response.json();
+      
+      // فلترة الأزواج المطلوبة فقط
+      const filteredPrices = allPrices.filter((price: BinancePrice) => 
+        commonPairs.includes(price.symbol)
+      );
+      
+      setPrices(filteredPrices);
     } catch (error: any) {
       console.error("Binance Prices Error:", error);
       toast({
@@ -124,8 +157,22 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
   const fetchOpenOrders = async () => {
     try {
       setRefreshing(prev => ({ ...prev, orders: true }));
-      const data = await getBinanceOpenOrders(accountId);
-      setOpenOrders(data);
+      
+      // استخدام وظيفة Edge Function الخاصة بنا للحصول على الطلبات المفتوحة
+      const { data, error } = await supabase.functions.invoke('binance-api', {
+        body: { 
+          action: 'get_open_orders',
+          accountId
+        }
+      });
+      
+      if (error) throw new Error(error.message);
+      
+      if (data.success && data.orders) {
+        setOpenOrders(data.orders);
+      } else {
+        throw new Error(data.message || 'Failed to fetch open orders');
+      }
     } catch (error: any) {
       console.error("Binance Open Orders Error:", error);
       toast({
@@ -153,21 +200,23 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
         throw new Error("الرجاء إدخال سعر صحيح للطلب المحدد");
       }
       
-      const order = {
+      const params: PlaceOrderParams = {
+        accountId,
         symbol: selectedSymbol,
         side: orderSide,
         type: orderType,
         quantity: parseFloat(orderQuantity)
       };
       
-      if (orderType === "LIMIT") {
-        Object.assign(order, { 
-          price: parseFloat(orderPrice),
-          timeInForce: "GTC"
-        });
+      if (orderType === "LIMIT" && orderPrice) {
+        params.price = parseFloat(orderPrice);
       }
       
-      const response = await placeBinanceOrder(accountId, order as any);
+      const response = await placeOrder(params);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to place order');
+      }
       
       toast({
         title: "تم إرسال الطلب بنجاح",
@@ -199,7 +248,24 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
   const handleCancelOrder = async (symbol: string, orderId: number) => {
     try {
       setError(null);
-      await cancelBinanceOrder(accountId, symbol, orderId);
+      
+      // استخدام وظيفة Edge Function الخاصة بنا لإلغاء الطلب
+      const { data, error } = await supabase.functions.invoke('binance-api', {
+        body: { 
+          action: 'cancel_order',
+          accountId,
+          data: {
+            symbol,
+            orderId
+          }
+        }
+      });
+      
+      if (error) throw new Error(error.message);
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to cancel order');
+      }
       
       toast({
         title: "تم إلغاء الطلب بنجاح"
@@ -241,13 +307,19 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
 
   // استخدام النسبة من الرصيد المتاح
   const usePercentageOfBalance = (percentage: number) => {
-    if (!accountInfo) return;
+    if (!accountInfo || !accountInfo.balances) return;
     
     // الحصول على رصيد USDT للشراء، أو رصيد العملة للبيع
     const baseAsset = selectedSymbol.replace("USDT", "");
-    const balance = orderSide === "BUY" 
-      ? getAssetBalance(accountInfo, "USDT") 
-      : getAssetBalance(accountInfo, baseAsset);
+    
+    let balance;
+    if (orderSide === "BUY") {
+      // البحث عن رصيد USDT
+      balance = accountInfo.balances.find(b => b.asset === "USDT");
+    } else {
+      // البحث عن رصيد العملة الأساسية
+      balance = accountInfo.balances.find(b => b.asset === baseAsset);
+    }
     
     if (balance) {
       const availableAmount = parseFloat(balance.free);
@@ -314,25 +386,25 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
           <CardTitle className="text-lg">معلومات الحساب</CardTitle>
         </CardHeader>
         <CardContent>
-          {accountInfo ? (
+          {accountInfo && accountInfo.success ? (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">USDT متاح</p>
                   <p className="text-xl font-semibold">
-                    {parseFloat(getAssetBalance(accountInfo, "USDT")?.free || "0").toFixed(2)} USDT
+                    {accountInfo.balances?.find(b => b.asset === "USDT")?.free || "0"} USDT
                   </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">BTC متاح</p>
                   <p className="text-xl font-semibold">
-                    {parseFloat(getAssetBalance(accountInfo, "BTC")?.free || "0").toFixed(6)} BTC
+                    {accountInfo.balances?.find(b => b.asset === "BTC")?.free || "0"} BTC
                   </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">ETH متاح</p>
                   <p className="text-xl font-semibold">
-                    {parseFloat(getAssetBalance(accountInfo, "ETH")?.free || "0").toFixed(6)} ETH
+                    {accountInfo.balances?.find(b => b.asset === "ETH")?.free || "0"} ETH
                   </p>
                 </div>
               </div>
@@ -340,7 +412,7 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
                 <p className="text-sm text-gray-500 mb-2">الأصول الأخرى</p>
                 <div className="grid grid-cols-4 gap-2">
                   {accountInfo.balances
-                    .filter(balance => 
+                    ?.filter(balance => 
                       parseFloat(balance.free) > 0 && 
                       !["USDT", "BTC", "ETH"].includes(balance.asset)
                     )
@@ -348,7 +420,7 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
                     .map(balance => (
                       <div key={balance.asset} className="bg-gray-50 p-2 rounded">
                         <p className="font-medium">{balance.asset}</p>
-                        <p className="text-sm">{parseFloat(balance.free).toFixed(6)}</p>
+                        <p className="text-sm">{balance.free}</p>
                       </div>
                     ))
                   }
