@@ -1,597 +1,680 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Plus, Settings2, Trash2, Info, HelpCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-
-interface TradingAccount {
-  id: string;
-  platform: string;
-  account_name: string;
-  api_key?: string;
-  api_secret?: string;
-  balance: number;
-  equity: number;
-  leverage: number;
-  is_active: boolean;
-  login_id?: string;
-  server?: string;
-  password?: string;
-}
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/use-toast";
+import { Loader2, RefreshCw, Wrench, Play, PlusCircle, Pause, WalletCards, Link2, AlertOctagon, CheckCircle, XCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { saveApiCredentials, syncAccount } from "@/services/binanceService";
 
 const AccountsPage = () => {
-  const [accounts, setAccounts] = useState<TradingAccount[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<any>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [apiSecret, setApiSecret] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newAccountName, setNewAccountName] = useState("");
+  const [newAccountPlatform, setNewAccountPlatform] = useState("Binance");
+  const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
-
-  const [newAccount, setNewAccount] = useState({
-    platform: "",
-    account_name: "",
-    api_key: "",
-    api_secret: "",
-    leverage: 100,
-    login_id: "",
-    server: "",
-    password: "",
-  });
-
-  const fetchAccounts = async () => {
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      
-      if (!sessionData.session?.user) {
-        navigate('/auth');
-        return;
-      }
-      
-      const { data, error } = await supabase
-        .from("trading_accounts")
-        .select("*")
-        .eq("user_id", sessionData.session.user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setAccounts(data || []);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "خطأ في جلب الحسابات",
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     fetchAccounts();
   }, []);
 
-  const handleAddAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const fetchAccounts = async () => {
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
+      setLoading(true);
       
+      // Get user session
+      const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session?.user) {
-        navigate('/auth');
+        toast({
+          variant: "destructive",
+          title: "جلسة غير صالحة",
+          description: "الرجاء تسجيل الدخول للوصول إلى حساباتك"
+        });
+        setLoading(false);
         return;
       }
       
-      // بيانات الحساب المشتركة بين جميع المنصات
-      const accountData: any = {
-        platform: newAccount.platform,
-        account_name: newAccount.account_name,
-        leverage: Number(newAccount.leverage),
-        user_id: sessionData.session.user.id
-      };
-
-      // إضافة بيانات خاصة حسب نوع المنصة
-      if (newAccount.platform === 'mt4' || newAccount.platform === 'mt5') {
-        accountData.login_id = newAccount.login_id;
-        accountData.password = newAccount.password;
-        accountData.server = newAccount.server;
-      } else if (newAccount.platform === 'binance' || newAccount.platform === 'bybit') {
-        accountData.api_key = newAccount.api_key;
-        accountData.api_secret = newAccount.api_secret;
-      }
-
-      const { error } = await supabase.from("trading_accounts").insert(accountData);
-
+      // Fetch user's trading accounts
+      const { data, error } = await supabase
+        .from('trading_accounts')
+        .select('*')
+        .eq('user_id', sessionData.session.user.id)
+        .order('created_at', { ascending: false });
+        
       if (error) throw error;
-
-      toast({
-        title: "تم إضافة الحساب بنجاح",
-      });
-      setShowAddForm(false);
-      setNewAccount({
-        platform: "",
-        account_name: "",
-        api_key: "",
-        api_secret: "",
-        leverage: 100,
-        login_id: "",
-        server: "",
-        password: "",
-      });
-      fetchAccounts();
+      
+      setAccounts(data || []);
     } catch (error: any) {
+      console.error("Error fetching accounts:", error);
       toast({
         variant: "destructive",
-        title: "خطأ في إضافة الحساب",
-        description: error.message,
+        title: "خطأ في جلب الحسابات",
+        description: error.message
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteAccount = async (id: string) => {
-    if (!confirm("هل أنت متأكد من حذف هذا الحساب؟")) return;
-    
-    setLoading(true);
+  const handleCreateAccount = async () => {
     try {
-      const { error } = await supabase
-        .from("trading_accounts")
-        .delete()
-        .eq("id", id);
-
+      if (!newAccountName) {
+        toast({
+          variant: "destructive",
+          title: "البيانات غير مكتملة",
+          description: "الرجاء إدخال اسم الحساب"
+        });
+        return;
+      }
+      
+      setIsCreating(true);
+      
+      // Get user session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.user) {
+        toast({
+          variant: "destructive",
+          title: "جلسة غير صالحة",
+          description: "الرجاء تسجيل الدخول لإنشاء حساب جديد"
+        });
+        return;
+      }
+      
+      // Create new account
+      const { data, error } = await supabase
+        .from('trading_accounts')
+        .insert({
+          user_id: sessionData.session.user.id,
+          account_name: newAccountName,
+          platform: newAccountPlatform,
+          is_active: true,
+          balance: 0,
+          equity: 0,
+          leverage: 100,
+          risk_level: 'medium',
+          max_drawdown: 10.0,
+          daily_profit_target: 2.0
+        })
+        .select();
+        
       if (error) throw error;
-
+      
       toast({
-        title: "تم حذف الحساب بنجاح",
+        title: "تم إنشاء الحساب بنجاح",
+        description: `تم إنشاء حساب "${newAccountName}" بنجاح`
       });
+      
+      // Reset form and close dialog
+      setNewAccountName("");
+      setNewAccountPlatform("Binance");
+      setIsAddDialogOpen(false);
+      
+      // Refresh accounts list
       fetchAccounts();
+      
     } catch (error: any) {
+      console.error("Error creating account:", error);
       toast({
         variant: "destructive",
-        title: "خطأ في حذف الحساب",
-        description: error.message,
+        title: "خطأ في إنشاء الحساب",
+        description: error.message
       });
     } finally {
-      setLoading(false);
+      setIsCreating(false);
     }
   };
 
-  // عرض الحقول المناسبة حسب نوع المنصة
-  const renderPlatformFields = () => {
-    if (!newAccount.platform) return null;
-
-    if (newAccount.platform === 'mt4' || newAccount.platform === 'mt5') {
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="login_id">
-              <div className="flex items-center gap-1">
-                معرف الدخول (Login ID)
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="h-4 w-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="w-[200px] text-sm">أدخل رقم حساب التداول (رقم تسعة أرقام غالباً)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </Label>
-            <Input
-              id="login_id"
-              value={newAccount.login_id}
-              onChange={(e) =>
-                setNewAccount({ ...newAccount, login_id: e.target.value })
-              }
-              required
-              placeholder="مثال: 12345678"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">
-              <div className="flex items-center gap-1">
-                كلمة المرور
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="h-4 w-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="w-[200px] text-sm">أدخل كلمة مرور حساب التداول (وليس كلمة مرور منصة التداول)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              value={newAccount.password}
-              onChange={(e) =>
-                setNewAccount({ ...newAccount, password: e.target.value })
-              }
-              required
-              placeholder="أدخل كلمة المرور الرئيسية أو كلمة مرور المستثمر"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="server">
-              <div className="flex items-center gap-1">
-                اسم السيرفر
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="h-4 w-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="w-[200px] text-sm">أدخل اسم خادم الوسيط (يمكنك العثور عليه في إعدادات الاتصال في منصة التداول)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </Label>
-            <Input
-              id="server"
-              value={newAccount.server}
-              onChange={(e) =>
-                setNewAccount({ ...newAccount, server: e.target.value })
-              }
-              required
-              placeholder="مثال: Demo.examplebroker.com"
-            />
-          </div>
-        </div>
-      );
-    } else if (newAccount.platform === 'binance' || newAccount.platform === 'bybit') {
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="api_key">
-              <div className="flex items-center gap-1">
-                مفتاح API
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="h-4 w-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="w-[200px] text-sm">أدخل مفتاح API الذي يمكنك الحصول عليه من صفحة إدارة مفاتيح API في حسابك</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </Label>
-            <Input
-              id="api_key"
-              value={newAccount.api_key}
-              onChange={(e) =>
-                setNewAccount({ ...newAccount, api_key: e.target.value })
-              }
-              required
-              placeholder="أدخل مفتاح API الخاص بك"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="api_secret">
-              <div className="flex items-center gap-1">
-                كلمة سر API
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="h-4 w-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="w-[200px] text-sm">أدخل كلمة سر API (تظهر مرة واحدة فقط عند إنشاء مفتاح API)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </Label>
-            <Input
-              id="api_secret"
-              type="password"
-              value={newAccount.api_secret}
-              onChange={(e) =>
-                setNewAccount({ ...newAccount, api_secret: e.target.value })
-              }
-              required
-              placeholder="أدخل كلمة سر API الخاصة بك"
-            />
-          </div>
-        </div>
-      );
+  const handleSaveCredentials = async (accountId: string) => {
+    try {
+      if (!apiKey || !apiSecret) {
+        toast({
+          variant: "destructive",
+          title: "البيانات غير مكتملة",
+          description: "الرجاء إدخال مفتاح API وكلمة السر"
+        });
+        return;
+      }
+      
+      setIsSaving(true);
+      
+      // Save and verify API credentials
+      const result = await saveApiCredentials(accountId, apiKey, apiSecret);
+      
+      if (result.success) {
+        toast({
+          title: "تم حفظ البيانات بنجاح",
+          description: "تم التحقق من مفاتيح API والاتصال بالمنصة"
+        });
+        
+        // Refresh accounts list
+        fetchAccounts();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "خطأ في حفظ البيانات",
+          description: result.message
+        });
+      }
+    } catch (error: any) {
+      console.error("Error saving credentials:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في حفظ البيانات",
+        description: error.message
+      });
+    } finally {
+      setIsSaving(false);
     }
+  };
 
-    return null;
+  const handleSyncAccount = async (accountId: string) => {
+    try {
+      setIsSyncing(true);
+      
+      // Sync account with exchange platform
+      const result = await syncAccount(accountId);
+      
+      if (result.success) {
+        toast({
+          title: "تم مزامنة الحساب بنجاح",
+          description: "تم تحديث بيانات الرصيد والمراكز المفتوحة"
+        });
+        
+        // Refresh accounts list
+        fetchAccounts();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "خطأ في مزامنة الحساب",
+          description: result.message
+        });
+      }
+    } catch (error: any) {
+      console.error("Error syncing account:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في مزامنة الحساب",
+        description: error.message
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleToggleAccountStatus = async (accountId: string, currentStatus: boolean) => {
+    try {
+      // Update account status
+      const { error } = await supabase
+        .from('trading_accounts')
+        .update({ is_active: !currentStatus })
+        .eq('id', accountId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "تم تحديث حالة الحساب",
+        description: `تم ${currentStatus ? 'تعطيل' : 'تفعيل'} الحساب بنجاح`
+      });
+      
+      // Refresh accounts list
+      fetchAccounts();
+    } catch (error: any) {
+      console.error("Error toggling account status:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في تحديث حالة الحساب",
+        description: error.message
+      });
+    }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">حسابات التداول</h1>
-        <Button onClick={() => setShowAddForm(true)} disabled={showAddForm}>
-          <Plus className="w-4 h-4 mr-2" />
-          إضافة حساب جديد
-        </Button>
-      </div>
-
-      {showAddForm && (
+    <div className="min-h-screen bg-gradient-to-b from-hamzah-50 to-hamzah-100 dark:from-hamzah-900 dark:to-hamzah-800">
+      <div className="container mx-auto px-4 py-8">
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-8 flex justify-between items-center"
         >
-          <Card>
-            <CardHeader>
-              <CardTitle>إضافة حساب جديد</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddAccount} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="platform">المنصة</Label>
-                    <Select
-                      value={newAccount.platform}
-                      onValueChange={(value) =>
-                        setNewAccount({ ...newAccount, platform: value })
-                      }
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر المنصة" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mt4">MetaTrader 4</SelectItem>
-                        <SelectItem value="mt5">MetaTrader 5</SelectItem>
-                        <SelectItem value="binance">Binance</SelectItem>
-                        <SelectItem value="bybit">Bybit</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="account_name">اسم الحساب</Label>
-                    <Input
-                      id="account_name"
-                      value={newAccount.account_name}
-                      onChange={(e) =>
-                        setNewAccount({ ...newAccount, account_name: e.target.value })
-                      }
-                      required
-                      placeholder="مثال: حساب التداول الرئيسي"
-                    />
-                  </div>
-                </div>
-
-                {renderPlatformFields()}
-
+          <div>
+            <h1 className="text-3xl font-bold text-hamzah-800 dark:text-hamzah-100">
+              حسابات التداول
+            </h1>
+            <p className="text-hamzah-600 dark:text-hamzah-300">
+              إدارة حسابات التداول المرتبطة بمنصات التداول المختلفة
+            </p>
+          </div>
+          
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="glass-morphism hover:scale-105 smooth-transition flex items-center">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                إضافة حساب جديد
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>إضافة حساب تداول جديد</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="leverage">
-                    <div className="flex items-center gap-1">
-                      الرافعة المالية
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="w-[200px] text-sm">أدخل قيمة الرافعة المالية المتاحة في حسابك (مثال: 100 تعني رافعة 1:100)</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </Label>
-                  <Input
-                    id="leverage"
-                    type="number"
-                    min="1"
-                    max="3000"
-                    value={newAccount.leverage}
-                    onChange={(e) =>
-                      setNewAccount({
-                        ...newAccount,
-                        leverage: parseInt(e.target.value) || 100,
-                      })
-                    }
+                  <Label htmlFor="account-name">اسم الحساب</Label>
+                  <Input 
+                    id="account-name" 
+                    placeholder="أدخل اسم الحساب" 
+                    value={newAccountName}
+                    onChange={(e) => setNewAccountName(e.target.value)}
                   />
                 </div>
-
-                <div className="flex justify-end space-x-2 rtl:space-x-reverse">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowAddForm(false)}
+                <div className="space-y-2">
+                  <Label htmlFor="platform">منصة التداول</Label>
+                  <select 
+                    id="platform"
+                    className="flex h-10 w-full rounded-md border border-hamzah-200 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-hamzah-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={newAccountPlatform}
+                    onChange={(e) => setNewAccountPlatform(e.target.value)}
                   >
-                    إلغاء
-                  </Button>
-                  <Button type="submit" disabled={loading || !newAccount.platform}>
-                    {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    إضافة الحساب
-                  </Button>
+                    <option value="Binance">Binance</option>
+                    <option value="Bybit">Bybit</option>
+                    <option value="KuCoin">KuCoin</option>
+                    <option value="MT4">MetaTrader 4</option>
+                    <option value="MT5">MetaTrader 5</option>
+                  </select>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      <Tabs defaultValue="all">
-        <TabsList className="mb-6">
-          <TabsTrigger value="all">جميع الحسابات</TabsTrigger>
-          <TabsTrigger value="mt">MetaTrader</TabsTrigger>
-          <TabsTrigger value="crypto">العملات الرقمية</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="all">
-          <AccountsList 
-            accounts={accounts} 
-            loading={loading} 
-            handleDeleteAccount={handleDeleteAccount} 
-            navigate={navigate} 
-          />
-        </TabsContent>
-        
-        <TabsContent value="mt">
-          <AccountsList 
-            accounts={accounts.filter(account => account.platform === 'mt4' || account.platform === 'mt5')} 
-            loading={loading} 
-            handleDeleteAccount={handleDeleteAccount} 
-            navigate={navigate} 
-          />
-        </TabsContent>
-        
-        <TabsContent value="crypto">
-          <AccountsList 
-            accounts={accounts.filter(account => account.platform === 'binance' || account.platform === 'bybit')} 
-            loading={loading} 
-            handleDeleteAccount={handleDeleteAccount} 
-            navigate={navigate} 
-          />
-        </TabsContent>
-      </Tabs>
-      
-      {/* دليل إرشادي */}
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3 rtl:space-x-reverse">
-          <Info className="h-5 w-5 text-blue-500 mt-0.5" />
-          <div>
-            <h3 className="font-semibold text-blue-800">كيفية إضافة حساب تداول:</h3>
-            <div className="mt-2 space-y-2 text-sm text-blue-800">
-              <p><strong>MetaTrader (MT4/MT5):</strong> ستحتاج إلى معرف الدخول وكلمة المرور واسم السيرفر من منصة التداول الخاصة بك.</p>
-              <p><strong>Binance/Bybit:</strong> ستحتاج إلى إنشاء مفاتيح API من لوحة تحكم حسابك مع تفعيل صلاحيات القراءة والتداول.</p>
-              <p>للحصول على تفاصيل حول كيفية إنشاء مفاتيح API أو العثور على بيانات الاتصال، راجع دليل المستخدم لكل منصة.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// مكون قائمة الحسابات المستخرج لتبسيط الرمز
-interface AccountsListProps {
-  accounts: TradingAccount[];
-  loading: boolean;
-  handleDeleteAccount: (id: string) => Promise<void>;
-  navigate: (path: string) => void;
-}
-
-const AccountsList = ({ accounts, loading, handleDeleteAccount, navigate }: AccountsListProps) => {
-  if (loading) {
-    return (
-      <div className="col-span-full flex justify-center items-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  } 
-  
-  if (accounts.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500 border border-dashed border-gray-200 rounded-lg">
-        <Info className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-        <h3 className="text-lg font-medium mb-2">لم تقم بإضافة أي حسابات بعد</h3>
-        <p className="text-gray-500 mb-0">قم بإضافة حسابات التداول الخاصة بك لبدء استخدام المنصة</p>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {accounts.map((account) => (
-        <motion.div
-          key={account.id}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-lg">{account.account_name}</h3>
-                  <div className="flex items-center mt-1">
-                    <Badge variant="outline" className="mr-2">
-                      {account.platform === "mt4" 
-                        ? "MetaTrader 4" 
-                        : account.platform === "mt5" 
-                          ? "MetaTrader 5" 
-                          : account.platform === "binance" 
-                            ? "Binance" 
-                            : "Bybit"}
-                    </Badge>
-                    {account.login_id && (
-                      <span className="text-xs text-gray-500">ID: {account.login_id}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex space-x-2 rtl:space-x-reverse">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => navigate(`/accounts/${account.id}/settings`)}
-                  >
-                    <Settings2 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-500 hover:text-red-700"
-                    onClick={() => handleDeleteAccount(account.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">الرصيد</span>
-                  <span className="font-medium">
-                    ${account.balance?.toLocaleString() || "0"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">الأموال المتاحة</span>
-                  <span className="font-medium">
-                    ${account.equity?.toLocaleString() || "0"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">الرافعة المالية</span>
-                  <span className="font-medium">1:{account.leverage}</span>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t">
-                <div
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    account.is_active
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-100 text-gray-800"
-                  }`}
+                <Button 
+                  className="w-full"
+                  onClick={handleCreateAccount}
+                  disabled={isCreating}
                 >
-                  {account.is_active ? "نشط" : "غير نشط"}
-                </div>
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      جاري الإنشاء...
+                    </>
+                  ) : "إنشاء الحساب"}
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            </DialogContent>
+          </Dialog>
         </motion.div>
-      ))}
+
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-12 w-12 animate-spin text-hamzah-600 dark:text-hamzah-300" />
+          </div>
+        ) : accounts.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16"
+          >
+            <WalletCards className="h-16 w-16 text-hamzah-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-hamzah-800 dark:text-hamzah-100 mb-2">
+              لا توجد حسابات تداول
+            </h2>
+            <p className="text-hamzah-600 dark:text-hamzah-300 mb-6">
+              قم بإضافة حساب تداول جديد للبدء في التداول الآلي
+            </p>
+            <Button 
+              className="glass-morphism hover:scale-105 smooth-transition"
+              onClick={() => setIsAddDialogOpen(true)}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              إضافة حساب الآن
+            </Button>
+          </motion.div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6">
+            {accounts.map((account) => (
+              <motion.div
+                key={account.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <Card className="glass-morphism p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div>
+                        <h2 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                          {account.account_name}
+                        </h2>
+                        <div className="flex items-center text-hamzah-600 dark:text-hamzah-300 mt-1">
+                          <span>{account.platform}</span>
+                          <Badge 
+                            variant={account.is_active ? "outline" : "secondary"}
+                            className="mr-2"
+                          >
+                            {account.is_active ? "نشط" : "معطل"}
+                          </Badge>
+                          {account.connection_status ? (
+                            <Badge 
+                              variant="outline"
+                              className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mx-2"
+                            >
+                              متصل
+                            </Badge>
+                          ) : (
+                            <Badge 
+                              variant="outline"
+                              className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 mx-2"
+                            >
+                              غير متصل
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleSyncAccount(account.id)}
+                        disabled={isSyncing || !account.is_api_verified}
+                      >
+                        {isSyncing && selectedAccount?.id === account.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={account.is_active}
+                          onCheckedChange={() => handleToggleAccountStatus(account.id, account.is_active)}
+                        />
+                      </div>
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedAccount(account);
+                          setApiKey(account.api_key || "");
+                          setApiSecret(account.api_secret || "");
+                        }}
+                      >
+                        <Wrench className="h-4 w-4 ml-2" />
+                        إعدادات
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div className="p-4 border border-hamzah-200 dark:border-hamzah-700 rounded-lg">
+                      <h3 className="text-sm font-medium text-hamzah-600 dark:text-hamzah-400">
+                        الرصيد
+                      </h3>
+                      <p className="text-2xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                        ${account.balance ? account.balance.toLocaleString() : '0.00'}
+                      </p>
+                    </div>
+                    <div className="p-4 border border-hamzah-200 dark:border-hamzah-700 rounded-lg">
+                      <h3 className="text-sm font-medium text-hamzah-600 dark:text-hamzah-400">
+                        قيمة الحساب
+                      </h3>
+                      <p className="text-2xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                        ${account.equity ? account.equity.toLocaleString() : '0.00'}
+                      </p>
+                    </div>
+                    <div className="p-4 border border-hamzah-200 dark:border-hamzah-700 rounded-lg">
+                      <h3 className="text-sm font-medium text-hamzah-600 dark:text-hamzah-400">
+                        الرافعة المالية
+                      </h3>
+                      <p className="text-2xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                        {account.leverage}x
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {account.is_api_verified ? (
+                    <div className="mt-4 p-4 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <div className="flex items-center">
+                        <CheckCircle className="h-5 w-5 text-green-500 ml-2" />
+                        <p className="text-green-700 dark:text-green-300">
+                          تم التحقق من مفاتيح API بنجاح
+                        </p>
+                      </div>
+                      <p className="text-sm text-green-600 dark:text-green-400 mr-7 mt-1">
+                        آخر مزامنة: {account.last_sync_time ? new Date(account.last_sync_time).toLocaleString('ar-SA') : 'لم تتم المزامنة بعد'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-4 p-4 border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                      <div className="flex items-center">
+                        <AlertOctagon className="h-5 w-5 text-yellow-500 ml-2" />
+                        <p className="text-yellow-700 dark:text-yellow-300">
+                          لم يتم ربط مفاتيح API بعد
+                        </p>
+                      </div>
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400 mr-7 mt-1">
+                        قم بإعداد مفاتيح API للبدء في التداول الآلي
+                      </p>
+                    </div>
+                  )}
+                  
+                  {selectedAccount?.id === account.id && (
+                    <div className="mt-6 border-t border-hamzah-200 dark:border-hamzah-700 pt-4">
+                      <Tabs defaultValue="api">
+                        <TabsList className="mb-4">
+                          <TabsTrigger value="api">إعدادات API</TabsTrigger>
+                          <TabsTrigger value="risk">إعدادات المخاطر</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="api">
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="api-key">مفتاح API</Label>
+                              <Input 
+                                id="api-key" 
+                                placeholder="أدخل مفتاح API" 
+                                value={apiKey}
+                                onChange={(e) => setApiKey(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="api-secret">كلمة سر API</Label>
+                              <Input 
+                                id="api-secret" 
+                                type="password"
+                                placeholder="أدخل كلمة سر API" 
+                                value={apiSecret}
+                                onChange={(e) => setApiSecret(e.target.value)}
+                              />
+                            </div>
+                            
+                            <div className="flex items-center">
+                              <Link2 className="h-4 w-4 text-hamzah-600 dark:text-hamzah-400 ml-2" />
+                              <a 
+                                href={`https://${account.platform.toLowerCase()}.com/account/api`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-hamzah-600 dark:text-hamzah-400 hover:underline"
+                              >
+                                كيفية الحصول على مفاتيح API من {account.platform}
+                              </a>
+                            </div>
+                            
+                            <div className="flex justify-between mt-4">
+                              <Button 
+                                variant="outline"
+                                onClick={() => setSelectedAccount(null)}
+                              >
+                                إلغاء
+                              </Button>
+                              <Button 
+                                onClick={() => handleSaveCredentials(account.id)}
+                                disabled={isSaving}
+                              >
+                                {isSaving ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    جاري الحفظ...
+                                  </>
+                                ) : "حفظ وتحقق"}
+                              </Button>
+                            </div>
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="risk">
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="risk-level">مستوى المخاطرة</Label>
+                              <select 
+                                id="risk-level"
+                                className="flex h-10 w-full rounded-md border border-hamzah-200 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-hamzah-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={account.risk_level}
+                                onChange={async (e) => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('trading_accounts')
+                                      .update({ risk_level: e.target.value })
+                                      .eq('id', account.id);
+                                      
+                                    if (error) throw error;
+                                    
+                                    toast({
+                                      title: "تم تحديث مستوى المخاطرة",
+                                      description: "تم تحديث إعدادات المخاطرة بنجاح"
+                                    });
+                                    
+                                    fetchAccounts();
+                                  } catch (error: any) {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "خطأ في تحديث إعدادات المخاطرة",
+                                      description: error.message
+                                    });
+                                  }
+                                }}
+                              >
+                                <option value="low">منخفض</option>
+                                <option value="medium">متوسط</option>
+                                <option value="high">عالي</option>
+                              </select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="max-drawdown">
+                                الحد الأقصى للسحب (%)
+                                <span className="text-sm text-hamzah-500 mr-2">
+                                  (الخسارة المسموح بها كنسبة من رأس المال)
+                                </span>
+                              </Label>
+                              <Input 
+                                id="max-drawdown" 
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={account.max_drawdown}
+                                onChange={async (e) => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('trading_accounts')
+                                      .update({ max_drawdown: parseFloat(e.target.value) })
+                                      .eq('id', account.id);
+                                      
+                                    if (error) throw error;
+                                    
+                                    toast({
+                                      title: "تم تحديث إعدادات المخاطرة",
+                                      description: "تم تحديث الحد الأقصى للسحب بنجاح"
+                                    });
+                                    
+                                    fetchAccounts();
+                                  } catch (error: any) {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "خطأ في تحديث إعدادات المخاطرة",
+                                      description: error.message
+                                    });
+                                  }
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="daily-profit-target">
+                                هدف الربح اليومي (%)
+                                <span className="text-sm text-hamzah-500 mr-2">
+                                  (نسبة الربح المستهدفة يومياً)
+                                </span>
+                              </Label>
+                              <Input 
+                                id="daily-profit-target" 
+                                type="number"
+                                min="0.1"
+                                max="100"
+                                step="0.1"
+                                value={account.daily_profit_target}
+                                onChange={async (e) => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('trading_accounts')
+                                      .update({ daily_profit_target: parseFloat(e.target.value) })
+                                      .eq('id', account.id);
+                                      
+                                    if (error) throw error;
+                                    
+                                    toast({
+                                      title: "تم تحديث إعدادات المخاطرة",
+                                      description: "تم تحديث هدف الربح اليومي بنجاح"
+                                    });
+                                    
+                                    fetchAccounts();
+                                  } catch (error: any) {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "خطأ في تحديث إعدادات المخاطرة",
+                                      description: error.message
+                                    });
+                                  }
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="flex justify-between mt-4">
+                              <Button 
+                                variant="outline"
+                                onClick={() => setSelectedAccount(null)}
+                              >
+                                إغلاق
+                              </Button>
+                              <Button 
+                                onClick={() => {
+                                  toast({
+                                    title: "تم حفظ الإعدادات",
+                                    description: "تم حفظ إعدادات المخاطرة بنجاح"
+                                  });
+                                  setSelectedAccount(null);
+                                }}
+                              >
+                                حفظ الإعدادات
+                              </Button>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

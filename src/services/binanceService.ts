@@ -1,162 +1,351 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-// أنواع البيانات
-export interface BinanceOrder {
+export interface TradingAccount {
+  id: string;
+  account_name: string;
+  broker_name?: string;
+  api_key?: string;
+  api_secret?: string;
+  platform: string;
+  balance?: number;
+  equity?: number;
+  connection_status?: boolean;
+  is_api_verified?: boolean;
+  is_active?: boolean;
+}
+
+export interface PlaceOrderParams {
+  accountId: string;
   symbol: string;
   side: 'BUY' | 'SELL';
-  type: 'LIMIT' | 'MARKET' | 'STOP_LOSS' | 'STOP_LOSS_LIMIT' | 'TAKE_PROFIT' | 'TAKE_PROFIT_LIMIT';
+  type: 'MARKET' | 'LIMIT';
   quantity: number;
   price?: number;
-  timeInForce?: 'GTC' | 'IOC' | 'FOK';
-  stopPrice?: number;
+  stopLoss?: number;
+  takeProfit?: number;
 }
 
-export interface BinanceBalance {
-  asset: string;
-  free: string;
-  locked: string;
-}
-
-export interface BinanceAccountInfo {
-  makerCommission: number;
-  takerCommission: number;
-  buyerCommission: number;
-  sellerCommission: number;
-  canTrade: boolean;
-  canWithdraw: boolean;
-  canDeposit: boolean;
-  updateTime: number;
-  accountType: string;
-  balances: BinanceBalance[];
-}
-
-export interface BinancePrice {
+export interface ClosePositionParams {
+  accountId: string;
   symbol: string;
-  price: string;
+  orderId: string;
+  tradeId: string;
+  quantity: number;
+  pnl?: number;
 }
 
-export interface BinanceOrderResponse {
+export interface UpdateStopLossParams {
+  accountId: string;
   symbol: string;
-  orderId: number;
-  orderListId: number;
-  clientOrderId: string;
-  transactTime: number;
-  price: string;
-  origQty: string;
-  executedQty: string;
-  cummulativeQuoteQty: string;
-  status: string;
-  timeInForce: string;
-  type: string;
-  side: string;
+  orderId: string;
+  tradeId: string;
+  stopPrice: number;
 }
 
-// استدعاء دالة Edge Function
-async function callBinanceApi(accountId: string, action: string, params?: any) {
+/**
+ * Tests the connection to the Binance API with the provided credentials
+ */
+export const testConnection = async (accountId: string): Promise<{ success: boolean; message: string }> => {
   try {
-    if (!accountId || accountId.trim() === '') {
-      throw new Error("معرف الحساب مطلوب: الرجاء تحديد حساب صالح");
-    }
-    
     const { data, error } = await supabase.functions.invoke('binance-api', {
-      body: {
-        accountId,
-        action,
-        params
+      body: { 
+        action: 'test_connection',
+        accountId
       }
     });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data;
   } catch (error) {
-    console.error(`Binance API Error (${action}):`, error);
-    throw error;
+    console.error('Error testing Binance connection:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Unknown error occurred' 
+    };
   }
-}
+};
 
-// الحصول على معلومات الحساب
-export async function getBinanceAccountInfo(accountId: string): Promise<BinanceAccountInfo> {
-  return callBinanceApi(accountId, 'getAccountInfo');
-}
+/**
+ * Places an order on Binance
+ */
+export const placeOrder = async (params: PlaceOrderParams): Promise<any> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('binance-api', {
+      body: { 
+        action: 'place_order',
+        accountId: params.accountId,
+        data: {
+          symbol: params.symbol,
+          side: params.side,
+          type: params.type,
+          quantity: params.quantity.toString(),
+          price: params.price?.toString(),
+          stopLoss: params.stopLoss,
+          takeProfit: params.takeProfit
+        }
+      }
+    });
 
-// الحصول على أسعار العملات
-export async function getBinancePrices(accountId: string, symbols?: string[]): Promise<BinancePrice[]> {
-  return callBinanceApi(accountId, 'getPrices', { symbols });
-}
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (error) {
+    console.error('Error placing Binance order:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to place order' 
+    };
+  }
+};
 
-// إنشاء طلب شراء/بيع جديد
-export async function placeBinanceOrder(
-  accountId: string,
-  order: BinanceOrder,
-  botId?: string
-): Promise<BinanceOrderResponse> {
-  return callBinanceApi(accountId, 'placeOrder', { order, botId });
-}
+/**
+ * Gets account information from Binance
+ */
+export const getAccountInfo = async (accountId: string): Promise<any> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('binance-api', {
+      body: { 
+        action: 'get_account_info',
+        accountId
+      }
+    });
 
-// الحصول على حالة طلب
-export async function getBinanceOrderStatus(
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (error) {
+    console.error('Error getting Binance account info:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to get account info' 
+    };
+  }
+};
+
+/**
+ * Closes a position on Binance
+ */
+export const closePosition = async (params: ClosePositionParams): Promise<any> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('binance-api', {
+      body: { 
+        action: 'close_position',
+        accountId: params.accountId,
+        data: {
+          symbol: params.symbol,
+          orderId: params.orderId,
+          tradeId: params.tradeId,
+          quantity: params.quantity.toString(),
+          pnl: params.pnl
+        }
+      }
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (error) {
+    console.error('Error closing Binance position:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to close position' 
+    };
+  }
+};
+
+/**
+ * Updates the stop loss for a position on Binance
+ */
+export const updateStopLoss = async (params: UpdateStopLossParams): Promise<any> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('binance-api', {
+      body: { 
+        action: 'update_stop_loss',
+        accountId: params.accountId,
+        data: {
+          symbol: params.symbol,
+          orderId: params.orderId,
+          tradeId: params.tradeId,
+          stopPrice: params.stopPrice.toString()
+        }
+      }
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (error) {
+    console.error('Error updating Binance stop loss:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to update stop loss' 
+    };
+  }
+};
+
+/**
+ * Syncs a trading account with Binance
+ */
+export const syncAccount = async (accountId: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    // Start by testing the connection
+    const connectionTest = await testConnection(accountId);
+    if (!connectionTest.success) {
+      return connectionTest;
+    }
+    
+    // Fetch and update account info
+    const accountInfo = await getAccountInfo(accountId);
+    if (!accountInfo.success) {
+      return { 
+        success: false, 
+        message: 'Failed to sync account: ' + (accountInfo.message || 'Unknown error') 
+      };
+    }
+    
+    return { 
+      success: true, 
+      message: 'Account synced successfully'
+    };
+  } catch (error) {
+    console.error('Error syncing account:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to sync account'
+    };
+  }
+};
+
+/**
+ * Starts or stops a trading bot
+ */
+export const controlTradingBot = async (
+  action: 'start_bot' | 'stop_bot',
+  botId: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('trading-api', {
+      body: { 
+        action,
+        botId
+      }
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (error) {
+    console.error(`Error ${action === 'start_bot' ? 'starting' : 'stopping'} trading bot:`, error);
+    return { 
+      success: false, 
+      message: error instanceof Error 
+        ? error.message 
+        : `Failed to ${action === 'start_bot' ? 'start' : 'stop'} trading bot`
+    };
+  }
+};
+
+/**
+ * Executes a trade through a trading bot or manually
+ */
+export const executeTrade = async (
   accountId: string,
   symbol: string,
-  orderId: number
-): Promise<BinanceOrderResponse> {
-  return callBinanceApi(accountId, 'getOrderStatus', { symbol, orderId });
-}
-
-// الحصول على الطلبات المفتوحة
-export async function getBinanceOpenOrders(
-  accountId: string,
-  symbol?: string
-): Promise<BinanceOrderResponse[]> {
-  return callBinanceApi(accountId, 'getOpenOrders', { symbol });
-}
-
-// إلغاء طلب
-export async function cancelBinanceOrder(
-  accountId: string,
-  symbol: string,
-  orderId: number,
+  type: 'buy' | 'sell',
+  lotSize: number,
+  stopLoss?: number,
+  takeProfit?: number,
   botId?: string
-): Promise<BinanceOrderResponse> {
-  return callBinanceApi(accountId, 'cancelOrder', { symbol, orderId, botId });
-}
+): Promise<any> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('trading-api', {
+      body: { 
+        action: 'execute_trade',
+        accountId,
+        botId,
+        symbol,
+        type,
+        lotSize,
+        stopLoss,
+        takeProfit
+      }
+    });
 
-// وظيفة مساعدة للحصول على رصيد عملة معينة
-export function getAssetBalance(accountInfo: BinanceAccountInfo, asset: string): BinanceBalance | undefined {
-  return accountInfo.balances.find(balance => balance.asset === asset);
-}
-
-// تحويل سعر العملة من نص إلى رقم
-export function parsePrice(price: string): number {
-  return parseFloat(price);
-}
-
-// تحويل كمية العملة من نص إلى رقم
-export function parseQuantity(quantity: string): number {
-  return parseFloat(quantity);
-}
-
-// حساب قيمة الصفقة بالدولار
-export function calculateOrderValue(price: number, quantity: number): number {
-  return price * quantity;
-}
-
-// حساب حجم الصفقة المناسب بناءً على نسبة المخاطرة من رأس المال
-export function calculatePositionSize(
-  availableBalance: number,
-  currentPrice: number,
-  riskPercentage: number,
-  stopLossPrice?: number
-): number {
-  const riskAmount = availableBalance * (riskPercentage / 100);
-  
-  if (stopLossPrice) {
-    // حساب حجم الصفقة بناءً على السعر الحالي ومستوى وقف الخسارة
-    const priceDifference = Math.abs(currentPrice - stopLossPrice);
-    const positionSize = riskAmount / priceDifference;
-    return positionSize;
-  } else {
-    // حساب حجم الصفقة بناءً على نسبة المخاطرة فقط
-    return riskAmount / currentPrice;
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (error) {
+    console.error('Error executing trade:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to execute trade'
+    };
   }
-}
+};
+
+/**
+ * Gets the status and performance of a trading bot
+ */
+export const getBotStatus = async (botId: string): Promise<any> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('trading-api', {
+      body: { 
+        action: 'get_bot_status',
+        botId
+      }
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (error) {
+    console.error('Error getting bot status:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to get bot status',
+      bot_status: false,
+      performance: {},
+      recent_trades: [],
+      logs: []
+    };
+  }
+};
+
+/**
+ * Verifies and saves API credentials for a trading account
+ */
+export const saveApiCredentials = async (
+  accountId: string,
+  apiKey: string,
+  apiSecret: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    // First update the credentials in the database
+    const { error: updateError } = await supabase
+      .from('trading_accounts')
+      .update({
+        api_key: apiKey,
+        api_secret: apiSecret,
+        is_api_verified: false // Will be set to true after verification
+      })
+      .eq('id', accountId);
+
+    if (updateError) throw new Error(updateError.message);
+    
+    // Now test the connection
+    const connectionTest = await testConnection(accountId);
+    
+    // Update verification status based on test result
+    const { error: verifyError } = await supabase
+      .from('trading_accounts')
+      .update({
+        is_api_verified: connectionTest.success,
+        connection_status: connectionTest.success
+      })
+      .eq('id', accountId);
+      
+    if (verifyError) throw new Error(verifyError.message);
+    
+    return connectionTest;
+  } catch (error) {
+    console.error('Error saving API credentials:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to save API credentials'
+    };
+  }
+};
