@@ -43,6 +43,16 @@ export interface UpdateStopLossParams {
   stopPrice: number;
 }
 
+export interface MicroTradingOptions {
+  enabled: boolean;
+  maxRiskPercentage: number;
+  preferredPairs: string[];
+  scalping: boolean;
+  closePositionsQuickly: boolean;
+  useHigherLeverage: boolean;
+  minimumOrderSize: number;
+}
+
 /**
  * Tests the connection to the Binance API with the provided credentials
  */
@@ -349,3 +359,168 @@ export const saveApiCredentials = async (
     };
   }
 };
+
+/**
+ * Enable micro-trading for accounts with low balance
+ */
+export const enableMicroTrading = async (
+  accountId: string,
+  options: MicroTradingOptions
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('binance-api', {
+      body: { 
+        action: 'enable_micro_trading',
+        accountId,
+        options
+      }
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (error) {
+    console.error('Error enabling micro trading:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to enable micro trading'
+    };
+  }
+};
+
+/**
+ * Sets optimal trading parameters for small balance accounts
+ */
+export const optimizeForSmallBalance = async (
+  botId: string, 
+  accountId: string
+): Promise<{ success: boolean; message: string, settings?: any }> => {
+  try {
+    // First get the account info to check the balance
+    const accountInfo = await getAccountInfo(accountId);
+    
+    if (!accountInfo.success) {
+      return { 
+        success: false, 
+        message: 'Failed to optimize: ' + (accountInfo.message || 'Could not get account information')
+      };
+    }
+    
+    // Calculate appropriate settings based on the balance
+    const balance = accountInfo.balance || 0;
+    
+    // Default micro-trading options
+    const microOptions: MicroTradingOptions = {
+      enabled: true,
+      maxRiskPercentage: balance < 10 ? 1 : (balance < 50 ? 2 : 3),
+      preferredPairs: ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'DOGEUSDT'],
+      scalping: true,
+      closePositionsQuickly: true,
+      useHigherLeverage: balance < 20,
+      minimumOrderSize: 5
+    };
+    
+    // Apply these settings to the bot
+    const { data, error } = await supabase.functions.invoke('trading-api', {
+      body: { 
+        action: 'optimize_bot_for_small_balance',
+        botId,
+        accountId,
+        microOptions
+      }
+    });
+
+    if (error) throw new Error(error.message);
+    
+    // Also enable micro trading mode on the account
+    await enableMicroTrading(accountId, microOptions);
+    
+    return {
+      success: true,
+      message: 'Bot optimized for small balance account',
+      settings: microOptions
+    };
+  } catch (error) {
+    console.error('Error optimizing bot for small balance:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to optimize bot for small balance'
+    };
+  }
+};
+
+/**
+ * Gets the recommended trading pairs for small balance accounts
+ */
+export const getRecommendedPairsForSmallBalance = async (): Promise<string[]> => {
+  // These are pairs that typically have lower minimum trade requirements
+  // and good liquidity even for small trades
+  return [
+    'BTCUSDT',  // Bitcoin
+    'ETHUSDT',  // Ethereum
+    'BNBUSDT',  // Binance Coin
+    'ADAUSDT',  // Cardano
+    'DOGEUSDT', // Dogecoin
+    'XRPUSDT',  // Ripple
+    'TRXUSDT',  // TRON
+    'LTCUSDT',  // Litecoin
+    'DOTUSDT',  // Polkadot
+    'MATICUSDT' // Polygon
+  ];
+};
+
+/**
+ * Analyzes account balance and provides optimization recommendations
+ */
+export const analyzeAccountForOptimization = async (
+  accountId: string
+): Promise<{
+  success: boolean;
+  message: string;
+  recommendations?: {
+    isSmallBalance: boolean;
+    recommendedPairs: string[];
+    maxRiskPerTrade: number;
+    recommendedLeverage: number;
+    takeProfit: number;
+    stopLoss: number;
+    minOrderSize: number;
+  }
+}> => {
+  try {
+    const accountInfo = await getAccountInfo(accountId);
+    
+    if (!accountInfo.success) {
+      return { 
+        success: false, 
+        message: 'Failed to analyze account: ' + (accountInfo.message || 'Could not get account information')
+      };
+    }
+    
+    const balance = accountInfo.balance || 0;
+    const isSmallBalance = balance < 100;
+    
+    // Generate recommendations based on balance
+    const recommendations = {
+      isSmallBalance,
+      recommendedPairs: await getRecommendedPairsForSmallBalance(),
+      maxRiskPerTrade: balance < 10 ? 1 : (balance < 50 ? 2 : 3),
+      recommendedLeverage: balance < 20 ? 5 : (balance < 50 ? 3 : 2),
+      takeProfit: balance < 50 ? 1.5 : 2.5,
+      stopLoss: balance < 50 ? 1 : 2,
+      minOrderSize: 5
+    };
+    
+    return {
+      success: true,
+      message: `Account analyzed successfully. ${isSmallBalance ? 'This is a small balance account and has been optimized for micro-trading.' : 'This account has sufficient balance for standard trading.'}`,
+      recommendations
+    };
+  } catch (error) {
+    console.error('Error analyzing account for optimization:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to analyze account'
+    };
+  }
+};
+
