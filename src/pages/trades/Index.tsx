@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -22,11 +22,14 @@ import {
   X,
   Filter,
   RefreshCw,
+  AlertTriangle,
+  DollarSign
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { performRealTradingAnalysis } from "@/services/binance/accountService";
 
 interface Trade {
   id: string;
@@ -55,6 +58,8 @@ const TradesPage = () => {
   const [selectedAccount, setSelectedAccount] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [openNewTradeDialog, setOpenNewTradeDialog] = useState(false);
+  const [isRealTrading, setIsRealTrading] = useState(false);
+  const [tradingAnalysis, setTradingAnalysis] = useState<any>(null);
   const { toast } = useToast();
 
   const [newTrade, setNewTrade] = useState({
@@ -111,6 +116,8 @@ const TradesPage = () => {
 
       if (error) throw error;
       setTrades(data || []);
+      
+      checkRealTradingStatus(selectedAccount);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -119,6 +126,25 @@ const TradesPage = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkRealTradingStatus = async (accountId: string) => {
+    try {
+      const analysis = await performRealTradingAnalysis(accountId);
+      setTradingAnalysis(analysis);
+      setIsRealTrading(analysis.isRealTrading && analysis.affectsRealMoney);
+      
+      if (analysis.isRealTrading && analysis.affectsRealMoney) {
+        toast({
+          variant: "destructive",
+          title: "تنبيه: تداول حقيقي",
+          description: "هذا الحساب يستخدم التداول الحقيقي ويؤثر على أموالك الفعلية!",
+          duration: 10000,
+        });
+      }
+    } catch (error) {
+      console.error("Error checking real trading status:", error);
     }
   };
 
@@ -179,8 +205,6 @@ const TradesPage = () => {
     
     setLoading(true);
     try {
-      // في البيئة الحقيقية، سيتم حساب الربح أو الخسارة بناءً على سعر الإغلاق الحالي
-      // وهنا نستخدم قيمة عشوائية للتوضيح فقط
       const randomPnl = Math.floor(Math.random() * 200) - 100;
       
       const { error } = await supabase
@@ -375,6 +399,19 @@ const TradesPage = () => {
         </Dialog>
       </div>
 
+      {isRealTrading && (
+        <Alert 
+          className="mb-6 bg-red-50 border-red-300 text-red-900 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300"
+        >
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle className="font-bold">تنبيه: تداول حقيقي يؤثر على أموالك الفعلية!</AlertTitle>
+          <AlertDescription>
+            هذا الحساب متصل ونشط للتداول الحقيقي. أي صفقات يتم إنشاؤها ستستخدم أموالك الحقيقية.
+            يرجى توخي الحذر عند إنشاء صفقات جديدة أو إغلاق الصفقات الحالية.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="mb-6">
         <Card>
           <CardContent className="p-6">
@@ -403,6 +440,13 @@ const TradesPage = () => {
                 </Button>
               </div>
             </div>
+
+            {isRealTrading && (
+              <div className="mb-4 flex items-center p-2 border border-red-300 rounded bg-red-50 text-red-800 dark:bg-red-900/10 dark:border-red-800 dark:text-red-300">
+                <DollarSign className="h-5 w-5 ml-2 flex-shrink-0" />
+                <span className="text-sm font-medium">هذا حساب تداول حقيقي يؤثر على أموالك الفعلية</span>
+              </div>
+            )}
 
             <Tabs defaultValue="open">
               <TabsList className="mb-4">

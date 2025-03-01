@@ -59,3 +59,16 @@ export interface RealTimeTradeStatus {
   profitLoss: number;
   connectionStatus: boolean;
 }
+
+export interface AccountAnalysisResult {
+  success: boolean;
+  message: string;
+  isRealTrading: boolean;
+  affectsRealMoney: boolean;
+  tradingPermissions?: string[];
+  recommendedSettings?: {
+    maxRiskPerTrade: number;
+    recommendedPairs: string[];
+  };
+  warnings?: string[];
+}

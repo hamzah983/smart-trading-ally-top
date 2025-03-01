@@ -9,9 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, RefreshCw, Wrench, Play, PlusCircle, Pause, WalletCards, Link2, AlertOctagon, CheckCircle, XCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { 
+  Loader2, RefreshCw, Wrench, Play, PlusCircle, Pause, 
+  WalletCards, Link2, AlertOctagon, CheckCircle, XCircle, 
+  AlertTriangle, InfoIcon, DollarSign 
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { saveApiCredentials, syncAccount } from "@/services/binance/accountService";
+import { saveApiCredentials, syncAccount, performRealTradingAnalysis } from "@/services/binance/accountService";
 
 const AccountsPage = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -25,6 +30,8 @@ const AccountsPage = () => {
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountPlatform, setNewAccountPlatform] = useState("Binance");
   const [isCreating, setIsCreating] = useState(false);
+  const [accountAnalysis, setAccountAnalysis] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -195,6 +202,9 @@ const AccountsPage = () => {
         
         // Refresh accounts list
         fetchAccounts();
+        
+        // Analyze the account for real trading
+        await analyzeAccountForRealTrading(accountId);
       } else {
         toast({
           variant: "destructive",
@@ -211,6 +221,28 @@ const AccountsPage = () => {
       });
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const analyzeAccountForRealTrading = async (accountId: string) => {
+    try {
+      setIsAnalyzing(true);
+      
+      const analysis = await performRealTradingAnalysis(accountId);
+      setAccountAnalysis(analysis);
+      
+      if (analysis.affectsRealMoney) {
+        toast({
+          variant: "destructive",
+          title: "تنبيه: تداول حقيقي",
+          description: "هذا الحساب جاهز للتداول الحقيقي وسيؤثر على أموالك الفعلية!",
+          duration: 10000,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error analyzing account:", error);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -345,36 +377,57 @@ const AccountsPage = () => {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <Card className="glass-morphism p-6">
+                  {account.is_api_verified && account.is_active && (
+                    <Alert 
+                      className={account.connection_status ? 
+                        "bg-red-50 border-red-300 text-red-900 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300 mb-4" :
+                        "bg-yellow-50 border-yellow-300 text-yellow-900 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300 mb-4"
+                      }
+                    >
+                      <AlertTriangle className="h-5 w-5" />
+                      <AlertTitle className="font-bold">
+                        {account.connection_status ? 
+                          "تنبيه: تداول حقيقي يؤثر على أموالك الفعلية!" : 
+                          "تنبيه: الاتصال غير متاح حاليًا"
+                        }
+                      </AlertTitle>
+                      <AlertDescription>
+                        {account.connection_status ? 
+                          "هذا الحساب متصل ونشط للتداول الحقيقي. أي صفقات يقوم بها الروبوت ستستخدم أموالك الحقيقية." :
+                          "لا يمكن بدء التداول الحقيقي حاليًا لأن الاتصال غير متاح. تحقق من مفاتيح API."
+                        }
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div>
-                        <h2 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
-                          {account.account_name}
-                        </h2>
-                        <div className="flex items-center text-hamzah-600 dark:text-hamzah-300 mt-1">
-                          <span>{account.platform}</span>
+                    <div>
+                      <h2 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                        {account.account_name}
+                      </h2>
+                      <div className="flex items-center text-hamzah-600 dark:text-hamzah-300 mt-1">
+                        <span>{account.platform}</span>
+                        <Badge 
+                          variant={account.is_active ? "outline" : "secondary"}
+                          className="mr-2"
+                        >
+                          {account.is_active ? "نشط" : "معطل"}
+                        </Badge>
+                        {account.connection_status ? (
                           <Badge 
-                            variant={account.is_active ? "outline" : "secondary"}
-                            className="mr-2"
+                            variant="outline"
+                            className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mx-2"
                           >
-                            {account.is_active ? "نشط" : "معطل"}
+                            متصل
                           </Badge>
-                          {account.connection_status ? (
-                            <Badge 
-                              variant="outline"
-                              className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mx-2"
-                            >
-                              متصل
-                            </Badge>
-                          ) : (
-                            <Badge 
-                              variant="outline"
-                              className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 mx-2"
-                            >
-                              غير متصل
-                            </Badge>
-                          )}
-                        </div>
+                        ) : (
+                          <Badge 
+                            variant="outline"
+                            className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 mx-2"
+                          >
+                            غير متصل
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -448,6 +501,15 @@ const AccountsPage = () => {
                       <p className="text-sm text-green-600 dark:text-green-400 mr-7 mt-1">
                         آخر مزامنة: {account.last_sync_time ? new Date(account.last_sync_time).toLocaleString('ar-SA') : 'لم تتم المزامنة بعد'}
                       </p>
+                      
+                      {account.is_active && account.connection_status && (
+                        <div className="flex items-center mt-2">
+                          <DollarSign className="h-5 w-5 text-red-500 ml-2" />
+                          <p className="text-red-700 dark:text-red-300 font-medium">
+                            التداول الحقيقي مفعل على هذا الحساب!
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="mt-4 p-4 border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
@@ -460,6 +522,26 @@ const AccountsPage = () => {
                       <p className="text-sm text-yellow-600 dark:text-yellow-400 mr-7 mt-1">
                         قم بإعداد مفاتيح API للبدء في التداول الآلي
                       </p>
+                    </div>
+                  )}
+                  
+                  {accountAnalysis && accountAnalysis.accountId === account.id && accountAnalysis.isRealTrading && (
+                    <div className="mt-4 p-4 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                      <h3 className="font-bold text-red-800 dark:text-red-300 mb-2 flex items-center">
+                        <AlertTriangle className="h-5 w-5 mr-2" />
+                        معلومات هامة عن التداول الحقيقي
+                      </h3>
+                      <ul className="list-disc list-inside space-y-1 text-red-700 dark:text-red-400">
+                        {accountAnalysis.warnings?.map((warning: string, index: number) => (
+                          <li key={index}>{warning}</li>
+                        ))}
+                      </ul>
+                      {accountAnalysis.recommendedSettings && (
+                        <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-700">
+                          <p className="font-medium text-red-800 dark:text-red-300">الإعدادات الموصى بها:</p>
+                          <p className="text-red-700 dark:text-red-400">الحد الأقصى للمخاطرة: {accountAnalysis.recommendedSettings.maxRiskPerTrade}%</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   

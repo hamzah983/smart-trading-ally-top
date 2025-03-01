@@ -1,6 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { TradingAccount, MicroTradingOptions } from "./types";
+import { TradingAccount, MicroTradingOptions, AccountAnalysisResult } from "./types";
 
 /**
  * Tests the connection to the Binance API with the provided credentials
@@ -311,6 +310,71 @@ export const analyzeAccountForOptimization = async (
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to analyze account'
+    };
+  }
+};
+
+/**
+ * Performs a complete analysis of the trading account to verify if it's ready for real trading
+ * and warns the user that their real money will be used for trading
+ */
+export const performRealTradingAnalysis = async (accountId: string): Promise<AccountAnalysisResult> => {
+  try {
+    console.log('Analyzing account for real trading readiness:', accountId);
+    
+    // Test API connection
+    const connectionTest = await testConnection(accountId);
+    if (!connectionTest.success) {
+      return {
+        success: false,
+        message: 'الاتصال بمنصة التداول غير متاح. يرجى التحقق من مفاتيح API.',
+        isRealTrading: false,
+        affectsRealMoney: false,
+        warnings: ['فشل الاتصال بمنصة التداول']
+      };
+    }
+    
+    // Verify trading permissions
+    const permissionsCheck = await verifyTradingPermissions(accountId);
+    
+    // Get account information
+    const accountInfo = await getAccountInfo(accountId);
+    const hasBalance = (accountInfo.balance || 0) > 0;
+    
+    // Get account optimization recommendations
+    const optimization = await analyzeAccountForOptimization(accountId);
+    
+    // Determine if the account is ready for real trading
+    const isRealTrading = connectionTest.success && permissionsCheck.success;
+    
+    return {
+      success: true,
+      message: isRealTrading 
+        ? 'الحساب جاهز للتداول الحقيقي. سيتم استخدام أموالك الفعلية للتداول!'
+        : 'الحساب غير جاهز للتداول الحقيقي بعد.',
+      isRealTrading,
+      affectsRealMoney: isRealTrading && hasBalance,
+      tradingPermissions: permissionsCheck.permissions,
+      recommendedSettings: optimization.success ? {
+        maxRiskPerTrade: optimization.recommendations?.maxRiskPerTrade || 2,
+        recommendedPairs: optimization.recommendations?.recommendedPairs || []
+      } : undefined,
+      warnings: isRealTrading ? [
+        'تنبيه: هذا تداول حقيقي وسيؤثر على أموالك الفعلية!',
+        'تأكد من ضبط مستويات المخاطرة المناسبة قبل تفعيل التداول الآلي.',
+        'نوصي بالبدء بمبلغ صغير للتأكد من سلوك الروبوت.'
+      ] : [
+        'الحساب غير مهيأ للتداول الحقيقي حاليًا.'
+      ]
+    };
+  } catch (error) {
+    console.error('Error analyzing real trading readiness:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'حدث خطأ أثناء تحليل الحساب',
+      isRealTrading: false,
+      affectsRealMoney: false,
+      warnings: ['فشل تحليل جاهزية الحساب للتداول الحقيقي']
     };
   }
 };
