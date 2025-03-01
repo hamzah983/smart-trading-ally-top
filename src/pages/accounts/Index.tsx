@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
@@ -12,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, RefreshCw, Wrench, Play, PlusCircle, Pause, WalletCards, Link2, AlertOctagon, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { saveApiCredentials, syncAccount } from "@/services/binanceService";
+import { saveApiCredentials, syncAccount } from "@/services/binance/accountService";
 
 const AccountsPage = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
