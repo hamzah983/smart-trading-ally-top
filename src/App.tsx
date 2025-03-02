@@ -1,12 +1,13 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster"
-import HomePage from './pages/Home';
-import DashboardPage from './pages/Dashboard';
+import HomePage from './pages/Index';
+import DashboardPage from './pages/dashboard/Index';
 import AccountsPage from './pages/accounts/Index';
-import BotsPage from './pages/Bots';
-import TradesPage from './pages/Trades';
-import AuthPage from './pages/Auth';
+import BotsPage from './pages/bots/Index';
+import TradesPage from './pages/trades/Index';
+import AuthPage from './pages/auth/Index';
 import NotFoundPage from './pages/NotFound';
 import ProfilePage from './pages/profile/Index';
 

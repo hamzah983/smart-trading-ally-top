@@ -55,7 +55,8 @@ export const resetSupabaseHeaders = () => {
   const testRequest = async () => {
     try {
       // Make a small request to ensure headers are properly set
-      await supabase.from('_dummy_').select('*').limit(1);
+      // Using a known table instead of a dummy one that doesn't exist
+      await supabase.from('trading_accounts').select('id').limit(1);
     } catch (e) {
       // Ignore errors, we just want to ensure headers are set
       console.log('Headers reset for Supabase client');

@@ -1,43 +1,43 @@
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, LogOut, Moon, Sun, User, Shield, Key, Upload } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { 
-  Loader2, User, Settings, Shield, Bell, Moon, Sun, 
-  Languages, DollarSign, Smartphone, LogOut
-} from "lucide-react";
-import { supabase, resetSupabaseHeaders } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [platforms, setPlatforms] = useState<string[]>([]);
-  const [selectedPlatform, setSelectedPlatform] = useState("Binance");
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [platforms, setPlatforms] = useState<string[]>([
+    "Binance", "Bybit", "KuCoin", "MT4", "MT5"
+  ]);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchUserData();
-    fetchSupportedPlatforms();
+    loadUserProfile();
     // Check if dark mode is enabled
-    setIsDarkMode(document.documentElement.classList.contains('dark'));
+    const isDark = document.documentElement.classList.contains('dark');
+    setIsDarkMode(isDark);
   }, []);
 
-  const fetchUserData = async () => {
+  const loadUserProfile = async () => {
     try {
       setLoading(true);
-      resetSupabaseHeaders();
       
       // Get user session
       const { data: sessionData } = await supabase.auth.getSession();
@@ -47,32 +47,79 @@ const ProfilePage = () => {
           title: "جلسة غير صالحة",
           description: "الرجاء تسجيل الدخول للوصول إلى ملفك الشخصي"
         });
-        setLoading(false);
+        navigate('/auth');
         return;
       }
       
-      const userData = sessionData.session.user;
-      setUser(userData);
+      setUser(sessionData.session.user);
+      setEmail(sessionData.session.user.email || "");
       
-      // Fetch user profile if it exists
-      const { data: profileData } = await supabase
+      // Fetch user profile
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userData.id)
+        .eq('id', sessionData.session.user.id)
         .single();
         
-      if (profileData) {
-        setDisplayName(profileData.display_name || userData.email?.split('@')[0] || '');
-      } else {
-        setDisplayName(userData.email?.split('@')[0] || '');
+      if (profileError && profileError.code !== 'PGRST116') {
+        // PGRST116 is "no rows returned" - we'll handle this by creating a profile
+        console.error("Error fetching profile:", profileError);
+        toast({
+          variant: "destructive",
+          title: "خطأ في جلب الملف الشخصي",
+          description: profileError.message
+        });
       }
       
-      setEmail(userData.email || '');
+      if (profileData) {
+        setProfile(profileData);
+        setDisplayName(profileData.full_name || "");
+      } else {
+        // Create a new profile if none exists
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: sessionData.session.user.id,
+            full_name: sessionData.session.user.user_metadata?.full_name || "",
+            avatar_url: "",
+            settings: {}
+          })
+          .select()
+          .single();
+          
+        if (createError) {
+          console.error("Error creating profile:", createError);
+          toast({
+            variant: "destructive",
+            title: "خطأ في إنشاء الملف الشخصي",
+            description: createError.message
+          });
+        } else if (newProfile) {
+          setProfile(newProfile);
+          setDisplayName(newProfile.full_name || "");
+        }
+      }
+      
+      // Fetch trading platforms
+      const { data: accountsData } = await supabase
+        .from('trading_accounts')
+        .select('platform')
+        .eq('user_id', sessionData.session.user.id);
+        
+      if (accountsData) {
+        // Get unique platforms the user has accounts with
+        const userPlatforms = [...new Set(accountsData.map(acc => acc.platform))];
+        if (userPlatforms.length > 0) {
+          // Update platforms list with user's connected platforms first
+          const remainingPlatforms = platforms.filter(p => !userPlatforms.includes(p));
+          setPlatforms([...userPlatforms, ...remainingPlatforms]);
+        }
+      }
     } catch (error: any) {
-      console.error("Error fetching user data:", error);
+      console.error("Error loading profile:", error);
       toast({
         variant: "destructive",
-        title: "خطأ في جلب بيانات المستخدم",
+        title: "خطأ في تحميل الملف الشخصي",
         description: error.message
       });
     } finally {
@@ -80,62 +127,31 @@ const ProfilePage = () => {
     }
   };
 
-  const fetchSupportedPlatforms = async () => {
+  const handleSaveProfile = async () => {
     try {
-      resetSupabaseHeaders();
-      // Fetch supported trading platforms
-      const { data } = await supabase
-        .from('trading_platforms')
-        .select('name')
-        .eq('is_active', true);
-        
-      if (data && data.length > 0) {
-        setPlatforms(data.map(p => p.name));
-      } else {
-        // Default platforms if none found in the database
-        setPlatforms(['Binance', 'Bybit', 'KuCoin', 'MT4', 'MT5']);
-      }
-    } catch (error) {
-      console.error("Error fetching platforms:", error);
-      // Default platforms in case of error
-      setPlatforms(['Binance', 'Bybit', 'KuCoin', 'MT4', 'MT5']);
-    }
-  };
-
-  const handleUpdateProfile = async () => {
-    try {
+      if (!user) return;
+      
       setIsSaving(true);
-      resetSupabaseHeaders();
       
-      if (!user) {
-        toast({
-          variant: "destructive",
-          title: "خطأ في تحديث الملف الشخصي",
-          description: "المستخدم غير مسجل الدخول"
-        });
-        return;
-      }
-      
-      // Update or insert profile data
+      // Update profile
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          display_name: displayName,
-          updated_at: new Date().toISOString()
-        });
+        .update({
+          full_name: displayName
+        })
+        .eq('id', user.id);
         
       if (error) throw error;
       
       toast({
         title: "تم تحديث الملف الشخصي",
-        description: "تم تحديث بيانات الملف الشخصي بنجاح"
+        description: "تم حفظ التغييرات بنجاح"
       });
     } catch (error: any) {
-      console.error("Error updating profile:", error);
+      console.error("Error saving profile:", error);
       toast({
         variant: "destructive",
-        title: "خطأ في تحديث الملف الشخصي",
+        title: "خطأ في حفظ الملف الشخصي",
         description: error.message
       });
     } finally {
@@ -143,49 +159,34 @@ const ProfilePage = () => {
     }
   };
 
-  const handleAddTradingPlatform = async () => {
-    try {
-      if (!selectedPlatform) {
-        toast({
-          variant: "destructive",
-          title: "خطأ",
-          description: "يرجى اختيار منصة تداول"
-        });
-        return;
-      }
-      
-      // Navigate to accounts page with selected platform
-      window.location.href = `/accounts?platform=${selectedPlatform}`;
-    } catch (error: any) {
-      console.error("Error navigating to accounts:", error);
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: error.message
-      });
-    }
-  };
-
-  const toggleDarkMode = () => {
-    const newDarkMode = !isDarkMode;
-    setIsDarkMode(newDarkMode);
+  const handleToggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
     
-    if (newDarkMode) {
+    // Update the document class
+    if (newMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
     
     toast({
-      title: newDarkMode ? "تم تفعيل الوضع الداكن" : "تم تفعيل الوضع الفاتح",
+      title: newMode ? "تم تفعيل الوضع الداكن" : "تم تفعيل الوضع الفاتح",
       description: "تم تغيير مظهر التطبيق بنجاح"
     });
   };
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      window.location.href = '/auth';
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "تم تسجيل الخروج",
+        description: "تم تسجيل الخروج بنجاح"
+      });
+      
+      navigate('/auth');
     } catch (error: any) {
       console.error("Error signing out:", error);
       toast({
@@ -194,6 +195,10 @@ const ProfilePage = () => {
         description: error.message
       });
     }
+  };
+
+  const handleConnectPlatform = (platform: string) => {
+    navigate(`/accounts?platform=${platform}`);
   };
 
   return (
@@ -205,10 +210,10 @@ const ProfilePage = () => {
           className="mb-8"
         >
           <h1 className="text-3xl font-bold text-hamzah-800 dark:text-hamzah-100">
-            الملف الشخصي والإعدادات
+            الملف الشخصي
           </h1>
           <p className="text-hamzah-600 dark:text-hamzah-300">
-            إدارة حسابك الشخصي وإعدادات التطبيق
+            إدارة حسابك وإعدادات التطبيق
           </p>
         </motion.div>
 
@@ -217,294 +222,206 @@ const ProfilePage = () => {
             <Loader2 className="h-12 w-12 animate-spin text-hamzah-600 dark:text-hamzah-300" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
               >
-                <Card className="glass-morphism p-6">
-                  <div className="flex flex-col items-center text-center">
-                    <Avatar className="h-24 w-24 mb-4">
-                      <AvatarImage src={user?.user_metadata?.avatar_url || ''} />
-                      <AvatarFallback className="bg-hamzah-500 text-white text-2xl">
-                        {displayName?.charAt(0)?.toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <h2 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
-                      {displayName || 'المستخدم'}
-                    </h2>
-                    <p className="text-hamzah-600 dark:text-hamzah-300 mt-1">
-                      {email}
-                    </p>
-                    
-                    <div className="w-full mt-6 space-y-2">
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start"
-                        onClick={() => document.getElementById('account-tab')?.click()}
-                      >
-                        <User className="ml-2 h-4 w-4" />
-                        الحساب الشخصي
+                <Card className="glass-morphism h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle>معلومات الحساب</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col items-center">
+                      <Avatar className="h-24 w-24 mb-4">
+                        <AvatarImage src={profile?.avatar_url || ""} />
+                        <AvatarFallback className="bg-hamzah-300 dark:bg-hamzah-700 text-2xl">
+                          {displayName ? displayName[0].toUpperCase() : <User />}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Button variant="outline" size="sm" className="mb-4">
+                        <Upload className="h-4 w-4 ml-2" />
+                        تغيير الصورة
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start"
-                        onClick={() => document.getElementById('trading-tab')?.click()}
-                      >
-                        <DollarSign className="ml-2 h-4 w-4" />
-                        منصات التداول
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start"
-                        onClick={() => document.getElementById('preferences-tab')?.click()}
-                      >
-                        <Settings className="ml-2 h-4 w-4" />
-                        التفضيلات
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start"
-                        onClick={() => document.getElementById('security-tab')?.click()}
-                      >
-                        <Shield className="ml-2 h-4 w-4" />
-                        الأمان
-                      </Button>
+                      <h2 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                        {displayName || "المستخدم"}
+                      </h2>
+                      <p className="text-hamzah-600 dark:text-hamzah-300 text-sm">
+                        {email}
+                      </p>
+                      
                       <Button 
                         variant="destructive" 
-                        className="w-full justify-start mt-4"
+                        className="mt-6 w-full"
                         onClick={handleLogout}
                       >
-                        <LogOut className="ml-2 h-4 w-4" />
+                        <LogOut className="h-4 w-4 ml-2" />
                         تسجيل الخروج
                       </Button>
                     </div>
-                  </div>
+                  </CardContent>
                 </Card>
               </motion.div>
             </div>
             
-            <div className="lg:col-span-2">
+            <div className="md:col-span-2">
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
               >
-                <Card className="glass-morphism p-6">
-                  <Tabs defaultValue="account">
-                    <TabsList className="mb-6">
-                      <TabsTrigger value="account" id="account-tab">الحساب</TabsTrigger>
-                      <TabsTrigger value="trading" id="trading-tab">منصات التداول</TabsTrigger>
-                      <TabsTrigger value="preferences" id="preferences-tab">التفضيلات</TabsTrigger>
-                      <TabsTrigger value="security" id="security-tab">الأمان</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="account">
-                      <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
-                          معلومات الحساب
-                        </h3>
-                        
+                <Card className="glass-morphism">
+                  <CardHeader className="pb-2">
+                    <CardTitle>الإعدادات</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Tabs defaultValue="profile">
+                      <TabsList className="mb-4">
+                        <TabsTrigger value="profile">الملف الشخصي</TabsTrigger>
+                        <TabsTrigger value="appearance">المظهر</TabsTrigger>
+                        <TabsTrigger value="platforms">منصات التداول</TabsTrigger>
+                        <TabsTrigger value="security">الأمان</TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="profile">
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <Label htmlFor="display-name">اسم العرض</Label>
+                            <Label htmlFor="display-name">الاسم الظاهر</Label>
                             <Input 
                               id="display-name" 
+                              placeholder="أدخل اسمك" 
                               value={displayName}
                               onChange={(e) => setDisplayName(e.target.value)}
-                              placeholder="أدخل اسم العرض"
                             />
                           </div>
-                          
                           <div className="space-y-2">
                             <Label htmlFor="email">البريد الإلكتروني</Label>
                             <Input 
                               id="email" 
+                              type="email"
+                              placeholder="أدخل بريدك الإلكتروني" 
                               value={email}
-                              disabled
                               readOnly
-                              className="bg-hamzah-100 dark:bg-hamzah-800"
                             />
-                            <p className="text-sm text-hamzah-500 dark:text-hamzah-400">
-                              لا يمكن تغيير البريد الإلكتروني
+                            <p className="text-xs text-hamzah-500 dark:text-hamzah-400">
+                              لا يمكن تغيير البريد الإلكتروني حاليًا
                             </p>
-                          </div>
-                        </div>
-                        
-                        <Button 
-                          onClick={handleUpdateProfile}
-                          disabled={isSaving}
-                          className="mt-4"
-                        >
-                          {isSaving ? (
-                            <>
-                              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                              جاري الحفظ...
-                            </>
-                          ) : "حفظ التغييرات"}
-                        </Button>
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="trading">
-                      <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
-                          منصات التداول
-                        </h3>
-                        
-                        <Alert>
-                          <AlertTitle className="font-bold">معلومات حول منصات التداول</AlertTitle>
-                          <AlertDescription>
-                            يمكنك ربط حسابات التداول الخاصة بك من خلال إضافة مفاتيح API للمنصات المدعومة.
-                            اختر المنصة التي ترغب في إضافتها أدناه.
-                          </AlertDescription>
-                        </Alert>
-                        
-                        <div className="space-y-4 mt-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="platform">اختر منصة التداول</Label>
-                            <select 
-                              id="platform"
-                              className="flex h-10 w-full rounded-md border border-hamzah-200 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-hamzah-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                              value={selectedPlatform}
-                              onChange={(e) => setSelectedPlatform(e.target.value)}
-                            >
-                              {platforms.map((platform) => (
-                                <option key={platform} value={platform}>{platform}</option>
-                              ))}
-                            </select>
                           </div>
                           
                           <Button 
-                            onClick={handleAddTradingPlatform}
+                            onClick={handleSaveProfile}
+                            disabled={isSaving}
                             className="mt-2"
                           >
-                            إضافة منصة التداول
+                            {isSaving ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                جاري الحفظ...
+                              </>
+                            ) : "حفظ التغييرات"}
                           </Button>
                         </div>
-                        
-                        <div className="mt-6 pt-6 border-t border-hamzah-200 dark:border-hamzah-700">
-                          <h4 className="font-medium text-hamzah-800 dark:text-hamzah-100 mb-2">
-                            المنصات المتصلة
-                          </h4>
-                          <p className="text-hamzah-600 dark:text-hamzah-400 text-sm">
-                            يمكنك إدارة منصات التداول المتصلة من صفحة حسابات التداول
-                          </p>
-                          <Button 
-                            variant="outline" 
-                            className="mt-2"
-                            onClick={() => window.location.href = '/accounts'}
-                          >
-                            إدارة منصات التداول
-                          </Button>
-                        </div>
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="preferences">
-                      <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
-                          تفضيلات التطبيق
-                        </h3>
-                        
-                        <div className="space-y-6">
+                      </TabsContent>
+                      
+                      <TabsContent value="appearance">
+                        <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <div className="space-y-0.5">
                               <Label className="text-base">الوضع الداكن</Label>
                               <p className="text-sm text-hamzah-500 dark:text-hamzah-400">
-                                تفعيل الوضع الداكن للتطبيق
+                                تبديل بين المظهر الفاتح والداكن
                               </p>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Sun className="h-4 w-4 ml-2 text-hamzah-500" />
-                              <Switch
+                            <div className="flex items-center space-x-2 ml-4">
+                              <Sun className="h-4 w-4 text-hamzah-500 dark:text-hamzah-400" />
+                              <Switch 
                                 checked={isDarkMode}
-                                onCheckedChange={toggleDarkMode}
+                                onCheckedChange={handleToggleDarkMode}
                               />
-                              <Moon className="h-4 w-4 mr-2 text-hamzah-500" />
+                              <Moon className="h-4 w-4 text-hamzah-500 dark:text-hamzah-400" />
                             </div>
                           </div>
                           
+                          <Separator />
+                          
                           <div className="flex items-center justify-between">
                             <div className="space-y-0.5">
-                              <Label className="text-base">الإشعارات</Label>
+                              <Label className="text-base">اتجاه القراءة</Label>
                               <p className="text-sm text-hamzah-500 dark:text-hamzah-400">
-                                تلقي إشعارات عن الصفقات وتحديثات الحساب
+                                اتجاه النصوص والعناصر
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2 ml-4">
+                              <select 
+                                className="flex h-9 w-full rounded-md border border-hamzah-200 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-hamzah-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-hamzah-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                defaultValue="rtl"
+                              >
+                                <option value="rtl">من اليمين إلى اليسار (RTL)</option>
+                                <option value="ltr">من اليسار إلى اليمين (LTR)</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+                      
+                      <TabsContent value="platforms">
+                        <div className="space-y-4">
+                          <p className="text-sm text-hamzah-600 dark:text-hamzah-300">
+                            قم بربط منصات التداول المختلفة بحسابك لبدء التداول الآلي
+                          </p>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            {platforms.map((platform) => (
+                              <Card key={platform} className="overflow-hidden">
+                                <div className="p-4 flex justify-between items-center">
+                                  <div>
+                                    <h3 className="font-medium">{platform}</h3>
+                                    <p className="text-xs text-hamzah-500 dark:text-hamzah-400">
+                                      ربط منصة {platform} بحسابك
+                                    </p>
+                                  </div>
+                                  <Button 
+                                    size="sm"
+                                    onClick={() => handleConnectPlatform(platform)}
+                                  >
+                                    ربط
+                                  </Button>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      </TabsContent>
+                      
+                      <TabsContent value="security">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <Label className="text-base">تأمين الحساب</Label>
+                              <p className="text-sm text-hamzah-500 dark:text-hamzah-400">
+                                طلب التحقق لإجراء تغييرات على الحساب
                               </p>
                             </div>
                             <Switch defaultChecked />
                           </div>
                           
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                              <Label className="text-base">اللغة</Label>
-                              <p className="text-sm text-hamzah-500 dark:text-hamzah-400">
-                                اختر لغة التطبيق المفضلة
-                              </p>
-                            </div>
-                            <select
-                              className="flex h-9 rounded-md border border-hamzah-200 bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-hamzah-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                              defaultValue="ar"
-                            >
-                              <option value="ar">العربية</option>
-                              <option value="en">English</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="security">
-                      <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
-                          إعدادات الأمان
-                        </h3>
-                        
-                        <Alert className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
-                          <AlertTitle className="font-bold text-yellow-800 dark:text-yellow-200">
-                            أمان الحساب
-                          </AlertTitle>
-                          <AlertDescription className="text-yellow-700 dark:text-yellow-300">
-                            تأكد من حماية حسابك باستخدام كلمة مرور قوية واستخدام المصادقة الثنائية.
-                          </AlertDescription>
-                        </Alert>
-                        
-                        <div className="space-y-6 mt-4">
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                              <Label className="text-base">تغيير كلمة المرور</Label>
-                              <p className="text-sm text-hamzah-500 dark:text-hamzah-400">
-                                قم بتغيير كلمة المرور الخاصة بك بشكل دوري
-                              </p>
-                            </div>
-                            <Button variant="outline">
-                              تغيير كلمة المرور
-                            </Button>
-                          </div>
+                          <Separator />
                           
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                              <Label className="text-base">المصادقة الثنائية</Label>
-                              <p className="text-sm text-hamzah-500 dark:text-hamzah-400">
-                                زيادة أمان حسابك باستخدام المصادقة الثنائية
-                              </p>
-                            </div>
-                            <Switch defaultChecked={false} />
-                          </div>
+                          <Button variant="outline" className="flex items-center">
+                            <Key className="mr-2 h-4 w-4" />
+                            تغيير كلمة المرور
+                          </Button>
                           
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                              <Label className="text-base">إشعارات الأمان</Label>
-                              <p className="text-sm text-hamzah-500 dark:text-hamzah-400">
-                                تلقي إشعارات عند تسجيل الدخول من جهاز جديد
-                              </p>
-                            </div>
-                            <Switch defaultChecked />
-                          </div>
+                          <Button variant="outline" className="flex items-center">
+                            <Shield className="mr-2 h-4 w-4" />
+                            تفعيل المصادقة الثنائية
+                          </Button>
                         </div>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
                 </Card>
               </motion.div>
             </div>
