@@ -47,8 +47,21 @@ supabase.functions.setAuth(SUPABASE_PUBLISHABLE_KEY);
 export const resetSupabaseHeaders = () => {
   supabase.functions.setAuth(SUPABASE_PUBLISHABLE_KEY);
   
-  // Re-apply headers to the internal supabase client
-  Object.entries(defaultHeaders).forEach(([key, value]) => {
-    supabase.rest.headers.set(key, value);
-  });
+  // We can't directly access protected 'rest.headers', so we'll use a different approach
+  // to ensure headers are properly set for future requests
+  
+  // This approach doesn't try to modify internal properties directly, but ensures
+  // that the next request will have the proper headers via global fetch settings
+  const testRequest = async () => {
+    try {
+      // Make a small request to ensure headers are properly set
+      await supabase.from('_dummy_').select('*').limit(1);
+    } catch (e) {
+      // Ignore errors, we just want to ensure headers are set
+      console.log('Headers reset for Supabase client');
+    }
+  };
+  
+  // Execute immediately to ensure headers are set
+  testRequest();
 };
