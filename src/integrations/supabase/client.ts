@@ -15,18 +15,28 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true
   },
   global: {
+    headers: {
+      'apikey': SUPABASE_PUBLISHABLE_KEY,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+      'X-Trading-Mode': 'real',
+      'X-Client-Info': 'trading-app'
+    },
     fetch: (...args) => {
-      // Add headers to identify real trading requests
+      // For custom fetch logic while maintaining required headers
       const [url, options = {}] = args;
-      const headers = {
-        ...options.headers,
+      const defaultHeaders = {
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
         'X-Trading-Mode': 'real',
         'X-Client-Info': 'trading-app'
       };
       
       return fetch(url, {
         ...options,
-        headers
+        headers: {
+          ...defaultHeaders,
+          ...(options.headers || {})
+        }
       });
     }
   }
