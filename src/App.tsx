@@ -13,7 +13,7 @@ import ProfilePage from './pages/profile/Index';
 
 const App = () => {
   return (
-    <div className="min-h-screen bg-hamzah-50 dark:bg-hamzah-900 text-hamzah-950 dark:text-hamzah-50 rtl">
+    <div className="min-h-screen bg-hamzah-50 dark:bg-hamzah-900 text-hamzah-950 dark:text-hamzah-50">
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />

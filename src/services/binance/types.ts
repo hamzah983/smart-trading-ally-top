@@ -11,6 +11,10 @@ export interface TradingAccount {
   connection_status?: boolean;
   is_api_verified?: boolean;
   is_active?: boolean;
+  user_id?: string;
+  trading_mode?: 'real' | 'demo' | 'paper';
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface PlaceOrderParams {
@@ -71,4 +75,69 @@ export interface AccountAnalysisResult {
     recommendedPairs: string[];
   };
   warnings?: string[];
+}
+
+export interface TradingBot {
+  id: string;
+  name: string;
+  description?: string;
+  account_id: string;
+  strategy: string;
+  status: 'active' | 'paused' | 'stopped' | 'error';
+  trading_pairs: string[];
+  risk_level: number;
+  max_open_trades: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
+  profit_loss?: number;
+  win_rate?: number;
+  total_trades?: number;
+}
+
+export interface BotSettings {
+  takeProfit: number;
+  stopLoss: number;
+  timeframe: string;
+  maxDrawdown: number;
+  trailingStop: boolean;
+  martingale: boolean;
+  martingaleMultiplier?: number;
+  tradingHours?: {
+    start: string;
+    end: string;
+  }[];
+  indicators: {
+    name: string;
+    parameters: Record<string, any>;
+  }[];
+}
+
+export interface Trade {
+  id: string;
+  account_id: string;
+  bot_id?: string;
+  symbol: string;
+  type: 'buy' | 'sell';
+  status: 'open' | 'closed' | 'canceled' | 'error';
+  entry_price: number;
+  exit_price?: number;
+  quantity: number;
+  pnl?: number;
+  stop_loss?: number;
+  take_profit?: number;
+  created_at: string;
+  closed_at?: string;
+  closing_reason?: string;
+  order_id?: string;
+}
+
+export interface TradingPlatform {
+  id: string;
+  name: string;
+  logo: string;
+  description: string;
+  url: string;
+  supported: boolean;
 }

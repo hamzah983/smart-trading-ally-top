@@ -1,11 +1,15 @@
-import { supabase } from "@/integrations/supabase/client";
-import { TradingAccount, MicroTradingOptions, AccountAnalysisResult } from "./types";
+
+import { supabase, resetSupabaseHeaders } from "@/integrations/supabase/client";
+import { TradingAccount, MicroTradingOptions, AccountAnalysisResult, TradingPlatform } from "./types";
 
 /**
  * Tests the connection to the Binance API with the provided credentials
  */
 export const testConnection = async (accountId: string): Promise<{ success: boolean; message: string }> => {
   try {
+    // Reset headers before making the request
+    resetSupabaseHeaders();
+    
     const { data, error } = await supabase.functions.invoke('binance-api', {
       body: { 
         action: 'test_connection',
@@ -30,6 +34,9 @@ export const testConnection = async (accountId: string): Promise<{ success: bool
 export const getAccountInfo = async (accountId: string): Promise<any> => {
   try {
     console.log('Fetching real account information for account ID:', accountId);
+    
+    // Reset headers before making the request
+    resetSupabaseHeaders();
     
     const { data, error } = await supabase.functions.invoke('binance-api', {
       body: { 
@@ -62,6 +69,9 @@ export const getAccountInfo = async (accountId: string): Promise<any> => {
 export const syncAccount = async (accountId: string): Promise<{ success: boolean; message: string; realTradingEnabled?: boolean }> => {
   try {
     console.log('Syncing account with real trading verification:', accountId);
+    
+    // Reset headers before making the request
+    resetSupabaseHeaders();
     
     // Start by testing the connection
     const connectionTest = await testConnection(accountId);
@@ -102,6 +112,9 @@ export const verifyTradingPermissions = async (
   accountId: string
 ): Promise<{ success: boolean; message: string; permissions?: string[] }> => {
   try {
+    // Reset headers before making the request
+    resetSupabaseHeaders();
+    
     const { data, error } = await supabase.functions.invoke('binance-api', {
       body: { 
         action: 'verify_trading_permissions',
@@ -136,6 +149,9 @@ export const saveApiCredentials = async (
   try {
     console.log('Saving and verifying API credentials for real trading:', accountId);
     
+    // Reset headers before making the request
+    resetSupabaseHeaders();
+    
     // First update the credentials in the database
     const { error: updateError } = await supabase
       .from('trading_accounts')
@@ -159,7 +175,8 @@ export const saveApiCredentials = async (
       .from('trading_accounts')
       .update({
         is_api_verified: connectionTest.success,
-        connection_status: connectionTest.success
+        connection_status: connectionTest.success,
+        trading_mode: 'real' // Set to real mode since we're using real API keys
       })
       .eq('id', accountId);
       
@@ -186,6 +203,9 @@ export const saveApiCredentials = async (
  */
 export const updateSupabaseClientForTrading = async (): Promise<{ success: boolean; message: string }> => {
   try {
+    // Reset headers before making the request
+    resetSupabaseHeaders();
+    
     const { data, error } = await supabase.functions.invoke('trading-api', {
       body: { action: 'get_trading_api_key' }
     });
@@ -222,6 +242,9 @@ export const enableMicroTrading = async (
   options: MicroTradingOptions
 ): Promise<{ success: boolean; message: string }> => {
   try {
+    // Reset headers before making the request
+    resetSupabaseHeaders();
+    
     const { data, error } = await supabase.functions.invoke('binance-api', {
       body: { 
         action: 'enable_micro_trading',
@@ -260,6 +283,54 @@ export const getRecommendedPairsForSmallBalance = async (): Promise<string[]> =>
 };
 
 /**
+ * Get all supported trading platforms
+ */
+export const getSupportedPlatforms = async (): Promise<TradingPlatform[]> => {
+  return [
+    {
+      id: 'binance',
+      name: 'Binance',
+      logo: 'https://cryptologos.cc/logos/binance-coin-bnb-logo.png',
+      description: 'أكبر منصة تداول للعملات الرقمية في العالم',
+      url: 'https://www.binance.com',
+      supported: true
+    },
+    {
+      id: 'bybit',
+      name: 'Bybit',
+      logo: 'https://cryptologos.cc/logos/bybit-logo.png',
+      description: 'منصة تداول موثوقة للعملات الرقمية والعقود الآجلة',
+      url: 'https://www.bybit.com',
+      supported: true
+    },
+    {
+      id: 'kucoin',
+      name: 'KuCoin',
+      logo: 'https://cryptologos.cc/logos/kucoin-token-kcs-logo.png',
+      description: 'منصة تداول عالمية متكاملة للعملات الرقمية',
+      url: 'https://www.kucoin.com',
+      supported: true
+    },
+    {
+      id: 'mt4',
+      name: 'MT4',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Metatrader_logo.png',
+      description: 'منصة تداول الفوركس والعقود مقابل الفروقات الأكثر شعبية',
+      url: 'https://www.metatrader4.com',
+      supported: true
+    },
+    {
+      id: 'mt5',
+      name: 'MT5',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Metatrader_logo.png',
+      description: 'منصة التداول المتقدمة من MetaQuotes',
+      url: 'https://www.metatrader5.com',
+      supported: true
+    }
+  ];
+};
+
+/**
  * Analyzes account balance and provides optimization recommendations
  */
 export const analyzeAccountForOptimization = async (
@@ -278,6 +349,9 @@ export const analyzeAccountForOptimization = async (
   }
 }> => {
   try {
+    // Reset headers before making the request
+    resetSupabaseHeaders();
+    
     const accountInfo = await getAccountInfo(accountId);
     
     if (!accountInfo.success) {
@@ -321,6 +395,9 @@ export const analyzeAccountForOptimization = async (
 export const performRealTradingAnalysis = async (accountId: string): Promise<AccountAnalysisResult> => {
   try {
     console.log('Analyzing account for real trading readiness:', accountId);
+    
+    // Reset headers before making the request
+    resetSupabaseHeaders();
     
     // Test API connection
     const connectionTest = await testConnection(accountId);

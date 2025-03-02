@@ -57,12 +57,26 @@ export const resetSupabaseHeaders = () => {
       // Make a small request to ensure headers are properly set
       // Using a known table instead of a dummy one that doesn't exist
       await supabase.from('trading_accounts').select('id').limit(1);
+      console.log('Headers reset for Supabase client');
     } catch (e) {
       // Ignore errors, we just want to ensure headers are set
-      console.log('Headers reset for Supabase client');
+      console.error('Error resetting headers:', e);
     }
   };
   
   // Execute immediately to ensure headers are set
   testRequest();
+  
+  return {
+    success: true,
+    message: 'Supabase headers reset successfully'
+  };
 };
+
+// Automatic header reset on page load
+if (typeof window !== 'undefined') {
+  window.addEventListener('load', () => {
+    resetSupabaseHeaders();
+    console.log('Supabase headers initialized on page load');
+  });
+}
