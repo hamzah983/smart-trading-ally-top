@@ -1,958 +1,770 @@
-
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { supabase, resetSupabaseHeaders } from "@/integrations/supabase/client";
+import { useState } from 'react';
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
-import { 
-  Loader2, Plus, Power, LineChart, Activity, Settings2, AlertTriangle, 
-  CheckCircle2, Play, Pause, Trash2, BarChart4, BrainCircuit, Clock, 
-  Calendar, TrendingUp, Info, HelpCircle, ArrowUpRight, X
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Progress } from "@/components/ui/progress";
-import { useNavigate } from "react-router-dom";
-
-interface TradingBot {
-  id: string;
-  name: string;
-  strategy_type: string;
-  is_active: boolean;
-  account_id: string;
-  settings: any;
-  risk_parameters: any;
-  performance_metrics: any;
-  created_at: string;
-  updated_at: string;
-}
-
-interface TradingAccount {
-  id: string;
-  account_name: string;
-  platform: string;
-}
+import { useToast } from "@/components/ui/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { 
+  Loader2, RefreshCw, Wrench, Play, PlusCircle, Pause, 
+  WalletCards, Link2, AlertOctagon, CheckCircle, XCircle, 
+  AlertTriangle, InfoIcon, DollarSign 
+} from "lucide-react";
+import { saveApiCredentials, syncAccount, performRealTradingAnalysis } from "@/services/binance/accountService";
 
 const BotsPage = () => {
-  const navigate = useNavigate();
-  const [bots, setBots] = useState<TradingBot[]>([]);
-  const [accounts, setAccounts] = useState<TradingAccount[]>([]);
+  useEffect(() => {
+    // Reset headers on page load to ensure API key is present
+    resetSupabaseHeaders();
+    
+    // Fetch bots or perform other initialization logic here
+  }, []);
+  
+  const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openNewBotDialog, setOpenNewBotDialog] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState<{open: boolean, botId: string | null, action: 'delete' | 'toggle'}>({
-    open: false,
-    botId: null,
-    action: 'delete'
-  });
+  const [selectedAccount, setSelectedAccount] = useState<any>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [apiSecret, setApiSecret] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newAccountName, setNewAccountName] = useState("");
+  const [newAccountPlatform, setNewAccountPlatform] = useState("Binance");
+  const [isCreating, setIsCreating] = useState(false);
+  const [accountAnalysis, setAccountAnalysis] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { toast } = useToast();
 
-  const [newBot, setNewBot] = useState({
-    name: "",
-    strategy_type: "",
-    account_id: "",
-    risk_level: "medium",
-    max_daily_trades: 5,
-    use_stop_loss: true,
-    stop_loss_percentage: 2,
-    use_take_profit: true,
-    take_profit_percentage: 5,
-    trading_hours: {
-      start: "00:00",
-      end: "23:59"
-    },
-    max_risk_per_trade: 1,
-    preferred_pairs: ["EURUSD", "GBPUSD"]
-  });
-
-  // الاستراتيجيات المتاحة للروبوتات
-  const botStrategies = [
-    { id: "trend_following", name: "متابعة الترند", description: "استراتيجية تتبع الاتجاه العام للسوق" },
-    { id: "breakout_strategy", name: "اختراق المستويات", description: "تداول عند اختراق مستويات الدعم والمقاومة" },
-    { id: "mean_reversion", name: "العودة للمتوسط", description: "تداول عندما يبتعد السعر كثيراً عن المتوسط" },
-    { id: "grid_trading", name: "التداول الشبكي", description: "تنفيذ صفقات عند مستويات سعرية محددة مسبقاً" },
-    { id: "scalping", name: "سكالبينج", description: "تداول سريع للحصول على أرباح صغيرة متكررة" },
-  ];
-
-  // أزواج العملات المتاحة
-  const availablePairs = [
-    "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCHF", "USDCAD", "NZDUSD",
-    "EURGBP", "EURJPY", "GBPJPY", "AUDJPY", "EURAUD", "EURCHF", "GBPCAD"
-  ];
-
-  // الرسوم البيانية العشوائية للعرض فقط - في التطبيق الحقيقي ستكون مبنية على بيانات فعلية
-  const randomPerformance = () => {
-    const winRate = 55 + Math.floor(Math.random() * 25); // 55%-80%
-    const totalTrades = 10 + Math.floor(Math.random() * 90); // 10-100
-    const profitFactor = (1 + Math.random() * 1.5).toFixed(2); // 1.00-2.50
-    const averageProfit = (5 + Math.random() * 20).toFixed(2); // $5-$25
-    const drawdown = (5 + Math.random() * 10).toFixed(2); // 5%-15%
-    
-    return {
-      winRate,
-      totalTrades,
-      profitFactor,
-      averageProfit,
-      drawdown
-    };
-  };
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
 
   const fetchAccounts = async () => {
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
+      setLoading(true);
       
+      // Get user session
+      const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session?.user) {
-        return;
-      }
-      
-      const { data, error } = await supabase
-        .from("trading_accounts")
-        .select("id, account_name, platform")
-        .eq("user_id", sessionData.session.user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      
-      setAccounts(data || []);
-      if (data && data.length > 0) {
-        setNewBot(prev => ({ ...prev, account_id: data[0].id }));
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "خطأ في جلب الحسابات",
-        description: error.message,
-      });
-    }
-  };
-
-  const fetchBots = async () => {
-    setLoading(true);
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      
-      if (!sessionData.session?.user) {
-        return;
-      }
-      
-      // أولاً نجلب الحسابات للمستخدم الحالي
-      const { data: accountsData, error: accountsError } = await supabase
-        .from("trading_accounts")
-        .select("id")
-        .eq("user_id", sessionData.session.user.id);
-
-      if (accountsError) throw accountsError;
-      
-      if (!accountsData || accountsData.length === 0) {
-        setBots([]);
+        toast({
+          variant: "destructive",
+          title: "جلسة غير صالحة",
+          description: "الرجاء تسجيل الدخول للوصول إلى حساباتك"
+        });
         setLoading(false);
         return;
       }
       
-      // ثم نجلب الروبوتات المرتبطة بتلك الحسابات
-      const accountIds = accountsData.map(acc => acc.id);
+      // Fetch user's trading accounts
       const { data, error } = await supabase
-        .from("trading_bots")
-        .select("*")
-        .in("account_id", accountIds)
-        .order("created_at", { ascending: false });
-
+        .from('trading_accounts')
+        .select('*')
+        .eq('user_id', sessionData.session.user.id)
+        .order('created_at', { ascending: false });
+        
       if (error) throw error;
-      setBots(data || []);
+      
+      setAccounts(data || []);
     } catch (error: any) {
+      console.error("Error fetching accounts:", error);
       toast({
         variant: "destructive",
-        title: "خطأ في جلب الروبوتات",
-        description: error.message,
+        title: "خطأ في جلب الحسابات",
+        description: error.message
       });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchAccounts();
-    fetchBots();
-  }, []);
-
-  const handleCreateBot = async () => {
-    setLoading(true);
+  const handleCreateAccount = async () => {
     try {
-      // إعداد بيانات الروبوت
-      const botData = {
-        name: newBot.name,
-        strategy_type: newBot.strategy_type,
-        account_id: newBot.account_id,
-        is_active: false,
-        settings: {
-          max_daily_trades: newBot.max_daily_trades,
-          trading_hours: newBot.trading_hours,
-          preferred_pairs: newBot.preferred_pairs
-        },
-        risk_parameters: {
-          risk_level: newBot.risk_level,
-          max_risk_per_trade: newBot.max_risk_per_trade,
-          use_stop_loss: newBot.use_stop_loss,
-          stop_loss_percentage: newBot.stop_loss_percentage,
-          use_take_profit: newBot.use_take_profit,
-          take_profit_percentage: newBot.take_profit_percentage
-        },
-        performance_metrics: {
-          total_trades: 0,
-          winning_trades: 0,
-          losing_trades: 0,
-          profit_factor: 0,
-          total_profit: 0,
-          max_drawdown: 0
-        }
-      };
-
-      const { error } = await supabase.from("trading_bots").insert(botData);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم إنشاء الروبوت بنجاح",
-        description: "يمكنك الآن تفعيله لبدء التداول"
-      });
-      
-      setOpenNewBotDialog(false);
-      setNewBot({
-        name: "",
-        strategy_type: "",
-        account_id: accounts.length > 0 ? accounts[0].id : "",
-        risk_level: "medium",
-        max_daily_trades: 5,
-        use_stop_loss: true,
-        stop_loss_percentage: 2,
-        use_take_profit: true,
-        take_profit_percentage: 5,
-        trading_hours: {
-          start: "00:00",
-          end: "23:59"
-        },
-        max_risk_per_trade: 1,
-        preferred_pairs: ["EURUSD", "GBPUSD"]
-      });
-      
-      fetchBots();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "خطأ في إنشاء الروبوت",
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggleBot = async (botId: string, currentState: boolean) => {
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from("trading_bots")
-        .update({ is_active: !currentState })
-        .eq("id", botId);
-
-      if (error) throw error;
-
-      toast({
-        title: `تم ${!currentState ? 'تفعيل' : 'إيقاف'} الروبوت بنجاح`,
-      });
-      
-      fetchBots();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: `خطأ في ${!currentState ? 'تفعيل' : 'إيقاف'} الروبوت`,
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-      setConfirmDialog({ open: false, botId: null, action: 'delete' });
-    }
-  };
-
-  const handleDeleteBot = async (botId: string) => {
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from("trading_bots")
-        .delete()
-        .eq("id", botId);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم حذف الروبوت بنجاح",
-      });
-      
-      fetchBots();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "خطأ في حذف الروبوت",
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-      setConfirmDialog({ open: false, botId: null, action: 'delete' });
-    }
-  };
-
-  const getAccountById = (accountId: string) => {
-    return accounts.find(account => account.id === accountId);
-  };
-  
-  const getStrategyNameById = (strategyId: string) => {
-    const strategy = botStrategies.find(strategy => strategy.id === strategyId);
-    return strategy ? strategy.name : strategyId;
-  };
-
-  const handleConfirmAction = () => {
-    if (!confirmDialog.botId) return;
-    
-    if (confirmDialog.action === 'delete') {
-      handleDeleteBot(confirmDialog.botId);
-    } else if (confirmDialog.action === 'toggle') {
-      const bot = bots.find(b => b.id === confirmDialog.botId);
-      if (bot) {
-        handleToggleBot(confirmDialog.botId, bot.is_active);
+      if (!newAccountName) {
+        toast({
+          variant: "destructive",
+          title: "البيانات غير مكتملة",
+          description: "الرجاء إدخال اسم الحساب"
+        });
+        return;
       }
+      
+      setIsCreating(true);
+      
+      // Get user session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.user) {
+        toast({
+          variant: "destructive",
+          title: "جلسة غير صالحة",
+          description: "الرجاء تسجيل الدخول لإنشاء حساب جديد"
+        });
+        return;
+      }
+      
+      // Create new account
+      const { data, error } = await supabase
+        .from('trading_accounts')
+        .insert({
+          user_id: sessionData.session.user.id,
+          account_name: newAccountName,
+          platform: newAccountPlatform,
+          is_active: true,
+          balance: 0,
+          equity: 0,
+          leverage: 100,
+          risk_level: 'medium',
+          max_drawdown: 10.0,
+          daily_profit_target: 2.0
+        })
+        .select();
+        
+      if (error) throw error;
+      
+      toast({
+        title: "تم إنشاء الحساب بنجاح",
+        description: `تم إنشاء حساب "${newAccountName}" بنجاح`
+      });
+      
+      // Reset form and close dialog
+      setNewAccountName("");
+      setNewAccountPlatform("Binance");
+      setIsAddDialogOpen(false);
+      
+      // Refresh accounts list
+      fetchAccounts();
+      
+    } catch (error: any) {
+      console.error("Error creating account:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في إنشاء الحساب",
+        description: error.message
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleSaveCredentials = async (accountId: string) => {
+    try {
+      if (!apiKey || !apiSecret) {
+        toast({
+          variant: "destructive",
+          title: "البيانات غير مكتملة",
+          description: "الرجاء إدخال مفتاح API وكلمة السر"
+        });
+        return;
+      }
+      
+      setIsSaving(true);
+      
+      // Save and verify API credentials
+      const result = await saveApiCredentials(accountId, apiKey, apiSecret);
+      
+      if (result.success) {
+        toast({
+          title: "تم حفظ البيانات بنجاح",
+          description: "تم التحقق من مفاتيح API والاتصال بالمنصة"
+        });
+        
+        // Refresh accounts list
+        fetchAccounts();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "خطأ في حفظ البيانات",
+          description: result.message
+        });
+      }
+    } catch (error: any) {
+      console.error("Error saving credentials:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في حفظ البيانات",
+        description: error.message
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSyncAccount = async (accountId: string) => {
+    try {
+      setIsSyncing(true);
+      
+      // Sync account with exchange platform
+      const result = await syncAccount(accountId);
+      
+      if (result.success) {
+        toast({
+          title: "تم مزامنة الحساب بنجاح",
+          description: "تم تحديث بيانات الرصيد والمراكز المفتوحة"
+        });
+        
+        // Refresh accounts list
+        fetchAccounts();
+        
+        // Analyze the account for real trading
+        await analyzeAccountForRealTrading(accountId);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "خطأ في مزامنة الحساب",
+          description: result.message
+        });
+      }
+    } catch (error: any) {
+      console.error("Error syncing account:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في مزامنة الحساب",
+        description: error.message
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const analyzeAccountForRealTrading = async (accountId: string) => {
+    try {
+      setIsAnalyzing(true);
+      
+      const analysis = await performRealTradingAnalysis(accountId);
+      setAccountAnalysis(analysis);
+      
+      if (analysis.affectsRealMoney) {
+        toast({
+          variant: "destructive",
+          title: "تنبيه: تداول حقيقي",
+          description: "هذا الحساب جاهز للتداول الحقيقي وسيؤثر على أموالك الفعلية!",
+          duration: 10000,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error analyzing account:", error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleToggleAccountStatus = async (accountId: string, currentStatus: boolean) => {
+    try {
+      // Update account status
+      const { error } = await supabase
+        .from('trading_accounts')
+        .update({ is_active: !currentStatus })
+        .eq('id', accountId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "تم تحديث حالة الحساب",
+        description: `تم ${currentStatus ? 'تعطيل' : 'تفعيل'} الحساب بنجاح`
+      });
+      
+      // Refresh accounts list
+      fetchAccounts();
+    } catch (error: any) {
+      console.error("Error toggling account status:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في تحديث حالة الحساب",
+        description: error.message
+      });
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">روبوتات التداول الآلي</h1>
-          <p className="text-gray-500 mt-1">أتمتة استراتيجيات التداول الخاصة بك</p>
-        </div>
-        <Dialog open={openNewBotDialog} onOpenChange={setOpenNewBotDialog}>
-          <DialogTrigger asChild>
-            <Button disabled={accounts.length === 0}>
-              <Plus className="w-4 h-4 mr-2" />
-              إنشاء روبوت جديد
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>إنشاء روبوت تداول جديد</DialogTitle>
-              <DialogDescription>
-                قم بتكوين روبوت التداول الآلي الخاص بك لتنفيذ استراتيجيتك
-              </DialogDescription>
-            </DialogHeader>
-            
-            <Tabs defaultValue="basic" className="mt-4">
-              <TabsList className="mb-4 w-full">
-                <TabsTrigger value="basic" className="flex-1">المعلومات الأساسية</TabsTrigger>
-                <TabsTrigger value="strategy" className="flex-1">الاستراتيجية</TabsTrigger>
-                <TabsTrigger value="risk" className="flex-1">إدارة المخاطر</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="basic" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">اسم الروبوت</Label>
-                  <Input
-                    id="name"
-                    value={newBot.name}
-                    onChange={(e) => setNewBot({ ...newBot, name: e.target.value })}
-                    placeholder="أدخل اسماً وصفياً للروبوت"
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="account">حساب التداول</Label>
-                  <Select
-                    value={newBot.account_id}
-                    onValueChange={(value) => setNewBot({ ...newBot, account_id: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر حساب التداول" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.account_name} ({account.platform === "mt4" ? "MT4" : account.platform === "mt5" ? "MT5" : account.platform.toUpperCase()})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="strategy_type">نوع الاستراتيجية</Label>
-                  <Select
-                    value={newBot.strategy_type}
-                    onValueChange={(value) => setNewBot({ ...newBot, strategy_type: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر نوع استراتيجية التداول" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {botStrategies.map((strategy) => (
-                        <SelectItem key={strategy.id} value={strategy.id}>
-                          {strategy.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {newBot.strategy_type && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      {botStrategies.find(s => s.id === newBot.strategy_type)?.description}
-                    </p>
-                  )}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="strategy" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="max_daily_trades">
-                    <div className="flex items-center gap-1">
-                      الحد الأقصى للصفقات اليومية
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="w-[250px] text-sm">أقصى عدد من الصفقات التي يمكن للروبوت تنفيذها في اليوم الواحد</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </Label>
-                  <div className="flex gap-2 items-center">
-                    <Slider
-                      min={1}
-                      max={20}
-                      step={1}
-                      value={[newBot.max_daily_trades]}
-                      onValueChange={(value) => setNewBot({ ...newBot, max_daily_trades: value[0] })}
-                      className="flex-1"
-                    />
-                    <span className="w-10 text-center">{newBot.max_daily_trades}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="trading_hours">ساعات التداول</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="start_time" className="text-sm">وقت البدء</Label>
-                      <Input
-                        id="start_time"
-                        type="time"
-                        value={newBot.trading_hours.start}
-                        onChange={(e) => setNewBot({ 
-                          ...newBot, 
-                          trading_hours: { ...newBot.trading_hours, start: e.target.value } 
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="end_time" className="text-sm">وقت الانتهاء</Label>
-                      <Input
-                        id="end_time"
-                        type="time"
-                        value={newBot.trading_hours.end}
-                        onChange={(e) => setNewBot({ 
-                          ...newBot, 
-                          trading_hours: { ...newBot.trading_hours, end: e.target.value } 
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="preferred_pairs">
-                    <div className="flex items-center gap-1">
-                      أزواج العملات المفضلة
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="w-[250px] text-sm">أزواج العملات التي سيتداول عليها الروبوت</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder={`${newBot.preferred_pairs.length} أزواج مختارة`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availablePairs.map((pair) => (
-                        <div key={pair} className="flex items-center space-x-2 p-2 rtl:space-x-reverse">
-                          <input
-                            type="checkbox"
-                            id={`pair-${pair}`}
-                            checked={newBot.preferred_pairs.includes(pair)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setNewBot({
-                                  ...newBot,
-                                  preferred_pairs: [...newBot.preferred_pairs, pair]
-                                });
-                              } else {
-                                setNewBot({
-                                  ...newBot,
-                                  preferred_pairs: newBot.preferred_pairs.filter(p => p !== pair)
-                                });
-                              }
-                            }}
-                            className="mr-2 rtl:ml-2"
-                          />
-                          <label htmlFor={`pair-${pair}`}>{pair}</label>
-                        </div>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {newBot.preferred_pairs.map(pair => (
-                      <Badge key={pair} variant="secondary" className="px-2 py-1 flex items-center">
-                        {pair}
-                        <button 
-                          onClick={() => setNewBot({
-                            ...newBot,
-                            preferred_pairs: newBot.preferred_pairs.filter(p => p !== pair)
-                          })}
-                          className="ml-2 text-gray-500 hover:text-red-500"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="risk" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="risk_level">مستوى المخاطرة</Label>
-                  <Select
-                    value={newBot.risk_level}
-                    onValueChange={(value) => setNewBot({ ...newBot, risk_level: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر مستوى المخاطرة" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">منخفض (متحفظ)</SelectItem>
-                      <SelectItem value="medium">متوسط (متوازن)</SelectItem>
-                      <SelectItem value="high">مرتفع (جريء)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="max_risk_per_trade">
-                    <div className="flex items-center gap-1">
-                      الحد الأقصى للمخاطرة بكل صفقة (% من الرصيد)
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="w-[250px] text-sm">النسبة المئوية التي يمكن للروبوت أن يخاطر بها في كل صفقة</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </Label>
-                  <div className="flex gap-2 items-center">
-                    <Slider
-                      min={0.5}
-                      max={5}
-                      step={0.5}
-                      value={[newBot.max_risk_per_trade]}
-                      onValueChange={(value) => setNewBot({ ...newBot, max_risk_per_trade: value[0] })}
-                      className="flex-1"
-                    />
-                    <span className="w-10 text-center">{newBot.max_risk_per_trade}%</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="use_stop_loss">استخدام وقف الخسارة</Label>
-                      <p className="text-sm text-muted-foreground">تحديد نقطة خروج تلقائية لتقليل الخسائر</p>
-                    </div>
-                    <Switch
-                      checked={newBot.use_stop_loss}
-                      onCheckedChange={(checked) => setNewBot({ ...newBot, use_stop_loss: checked })}
-                    />
-                  </div>
-                  
-                  {newBot.use_stop_loss && (
-                    <div className="space-y-2">
-                      <Label htmlFor="stop_loss_percentage">نسبة وقف الخسارة (%)</Label>
-                      <div className="flex gap-2 items-center">
-                        <Slider
-                          min={0.5}
-                          max={5}
-                          step={0.5}
-                          value={[newBot.stop_loss_percentage]}
-                          onValueChange={(value) => setNewBot({ ...newBot, stop_loss_percentage: value[0] })}
-                          className="flex-1"
-                        />
-                        <span className="w-10 text-center">{newBot.stop_loss_percentage}%</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="use_take_profit">استخدام جني الأرباح</Label>
-                      <p className="text-sm text-muted-foreground">تحديد نقطة خروج تلقائية لتأمين الأرباح</p>
-                    </div>
-                    <Switch
-                      checked={newBot.use_take_profit}
-                      onCheckedChange={(checked) => setNewBot({ ...newBot, use_take_profit: checked })}
-                    />
-                  </div>
-                  
-                  {newBot.use_take_profit && (
-                    <div className="space-y-2">
-                      <Label htmlFor="take_profit_percentage">نسبة جني الأرباح (%)</Label>
-                      <div className="flex gap-2 items-center">
-                        <Slider
-                          min={1}
-                          max={10}
-                          step={0.5}
-                          value={[newBot.take_profit_percentage]}
-                          onValueChange={(value) => setNewBot({ ...newBot, take_profit_percentage: value[0] })}
-                          className="flex-1"
-                        />
-                        <span className="w-10 text-center">{newBot.take_profit_percentage}%</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-            
-            <DialogFooter className="mt-6">
-              <Button variant="outline" onClick={() => setOpenNewBotDialog(false)}>
-                إلغاء
-              </Button>
-              <Button type="button" onClick={handleCreateBot} disabled={!newBot.name || !newBot.strategy_type || !newBot.account_id || loading}>
-                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                إنشاء الروبوت
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {accounts.length === 0 ? (
-        <Card className="my-8 p-6">
-          <div className="text-center">
-            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">لا توجد حسابات تداول</h2>
-            <p className="text-gray-500 mb-6">
-              يجب عليك إضافة حساب تداول قبل أن تتمكن من إنشاء روبوتات تداول آلية.
-            </p>
-            <Button onClick={() => navigate('/accounts')}>
-              إضافة حساب تداول
-            </Button>
-          </div>
-        </Card>
-      ) : loading && bots.length === 0 ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      ) : bots.length === 0 ? (
-        <Card className="my-8 p-6">
-          <div className="text-center">
-            <BrainCircuit className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">لا توجد روبوتات بعد</h2>
-            <p className="text-gray-500 mb-6">
-              قم بإنشاء روبوت تداول جديد للبدء في التداول الآلي.
-            </p>
-            <Button onClick={() => setOpenNewBotDialog(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              إنشاء روبوت جديد
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          <Tabs defaultValue="all">
-            <TabsList className="mb-6">
-              <TabsTrigger value="all">جميع الروبوتات</TabsTrigger>
-              <TabsTrigger value="active">الروبوتات النشطة</TabsTrigger>
-              <TabsTrigger value="inactive">الروبوتات المتوقفة</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="all">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {bots.map((bot) => (
-                  <BotCard 
-                    key={bot.id} 
-                    bot={bot} 
-                    accounts={accounts} 
-                    botStrategies={botStrategies}
-                    onToggle={() => setConfirmDialog({ 
-                      open: true, 
-                      botId: bot.id, 
-                      action: 'toggle' 
-                    })}
-                    onDelete={() => setConfirmDialog({ 
-                      open: true, 
-                      botId: bot.id, 
-                      action: 'delete' 
-                    })}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="active">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {bots.filter(bot => bot.is_active).map((bot) => (
-                  <BotCard 
-                    key={bot.id} 
-                    bot={bot} 
-                    accounts={accounts} 
-                    botStrategies={botStrategies}
-                    onToggle={() => setConfirmDialog({ 
-                      open: true, 
-                      botId: bot.id, 
-                      action: 'toggle' 
-                    })}
-                    onDelete={() => setConfirmDialog({ 
-                      open: true, 
-                      botId: bot.id, 
-                      action: 'delete' 
-                    })}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="inactive">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {bots.filter(bot => !bot.is_active).map((bot) => (
-                  <BotCard 
-                    key={bot.id} 
-                    bot={bot} 
-                    accounts={accounts} 
-                    botStrategies={botStrategies}
-                    onToggle={() => setConfirmDialog({ 
-                      open: true, 
-                      botId: bot.id, 
-                      action: 'toggle' 
-                    })}
-                    onDelete={() => setConfirmDialog({ 
-                      open: true, 
-                      botId: bot.id, 
-                      action: 'delete' 
-                    })}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
-          
-          {/* دليل استخدام الروبوتات */}
-          <Card className="mt-8 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-900">
-            <CardContent className="p-6">
-              <div className="flex items-start space-x-3 rtl:space-x-reverse">
-                <Info className="h-5 w-5 text-blue-500 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-blue-800 dark:text-blue-300">كيفية استخدام روبوتات التداول:</h3>
-                  <ul className="mt-2 space-y-2 text-sm text-blue-800 dark:text-blue-300 list-disc list-inside">
-                    <li>قم بإنشاء روبوت واختر استراتيجية التداول المناسبة لك</li>
-                    <li>اضبط إعدادات المخاطرة بما يتناسب مع احتياجاتك</li>
-                    <li>قم بتفعيل الروبوت للبدء في التداول التلقائي</li>
-                    <li>راقب أداء الروبوت من خلال مؤشرات الأداء والرسوم البيانية</li>
-                    <li>يمكنك إيقاف الروبوت مؤقتاً في أي وقت</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-      
-      {/* مربع حوار التأكيد */}
-      <Dialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog({...confirmDialog, open})}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {confirmDialog.action === 'delete' ? 'تأكيد حذف الروبوت' : 'تأكيد تغيير حالة الروبوت'}
-            </DialogTitle>
-            <DialogDescription>
-              {confirmDialog.action === 'delete' 
-                ? 'هل أنت متأكد من رغبتك في حذف هذا الروبوت؟ لا يمكن التراجع عن هذا الإجراء.'
-                : 'هل أنت متأكد من رغبتك في تغيير حالة هذا الروبوت؟'}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setConfirmDialog({...confirmDialog, open: false})}
-            >
-              إلغاء
-            </Button>
-            <Button 
-              variant={confirmDialog.action === 'delete' ? 'destructive' : 'default'} 
-              onClick={handleConfirmAction}
-              disabled={loading}
-            >
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {confirmDialog.action === 'delete' ? 'حذف' : 'تأكيد'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-// مكون بطاقة الروبوت
-interface BotCardProps {
-  bot: TradingBot;
-  accounts: TradingAccount[];
-  botStrategies: { id: string; name: string; description: string }[];
-  onToggle: () => void;
-  onDelete: () => void;
-}
-
-const BotCard = ({ bot, accounts, botStrategies, onToggle, onDelete }: BotCardProps) => {
-  const account = accounts.find(acc => acc.id === bot.account_id);
-  const strategy = botStrategies.find(s => s.id === bot.strategy_type);
-  
-  // بيانات الأداء العشوائية للعرض فقط (في التطبيق الحقيقي ستكون من قاعدة البيانات)
-  const performance = bot.performance_metrics && Object.keys(bot.performance_metrics).length > 0 
-    ? bot.performance_metrics 
-    : {
-        winRate: 55 + Math.floor(Math.random() * 25),
-        totalTrades: 10 + Math.floor(Math.random() * 90),
-        profitFactor: (1 + Math.random() * 1.5).toFixed(2),
-        averageProfit: (5 + Math.random() * 20).toFixed(2),
-        drawdown: (5 + Math.random() * 10).toFixed(2)
-      };
-  
-  // تاريخ التحديث بصيغة مقروءة
-  const formattedDate = new Date(bot.updated_at).toLocaleDateString('ar-SA', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-
-  return (
-    <Card className={`${bot.is_active ? 'border-green-200 dark:border-green-900' : 'border-gray-200 dark:border-gray-800'}`}>
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
+    <div className="min-h-screen bg-gradient-to-b from-hamzah-50 to-hamzah-100 dark:from-hamzah-900 dark:to-hamzah-800">
+      <div className="container mx-auto px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 flex justify-between items-center"
+        >
           <div>
-            <CardTitle className="text-xl flex items-center gap-2">
-              {bot.name}
-              {bot.is_active ? (
-                <Badge variant="success" className="ml-2">نشط</Badge>
-              ) : (
-                <Badge variant="outline" className="ml-2">متوقف</Badge>
-              )}
-            </CardTitle>
-            <div className="text-sm text-gray-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span>{account?.account_name || 'غير معروف'}</span>
-              <span>•</span>
-              <span>{strategy?.name || bot.strategy_type}</span>
-            </div>
-          </div>
-          <div className="flex space-x-1 rtl:space-x-reverse">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onToggle}
-              className={bot.is_active ? "text-amber-500 hover:text-amber-700" : "text-green-500 hover:text-green-700"}
-            >
-              {bot.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onDelete}
-              className="text-red-500 hover:text-red-700"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="pt-4 pb-2">
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="text-center">
-              <div className="text-sm text-gray-500">نسبة الفوز</div>
-              <div className="text-2xl font-semibold mt-1">{performance.winRate}%</div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-500">الصفقات</div>
-              <div className="text-2xl font-semibold mt-1">{performance.totalTrades}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-500">عامل الربح</div>
-              <div className="text-2xl font-semibold mt-1">{performance.profitFactor}</div>
-            </div>
+            <h1 className="text-3xl font-bold text-hamzah-800 dark:text-hamzah-100">
+              حسابات التداول
+            </h1>
+            <p className="text-hamzah-600 dark:text-hamzah-300">
+              إدارة حسابات التداول المرتبطة بمنصات التداول المختلفة
+            </p>
           </div>
           
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm mb-1">
-              <span>أداء الروبوت:</span>
-              <span className="text-green-600">+38.5%</span>
-            </div>
-            <Progress value={38.5} className="h-2" />
-          </div>
-          
-          <div className="mt-4 pt-4 border-t flex justify-between text-xs text-gray-500">
-            <div className="flex items-center">
-              <Clock className="h-3 w-3 mr-1" />
-              <span>آخر تحديث: {formattedDate}</span>
-            </div>
-            <div>
-              {bot.risk_parameters?.risk_level && (
-                <div className="flex items-center">
-                  <AlertTriangle className={`h-3 w-3 mr-1 ${
-                    bot.risk_parameters.risk_level === 'low' ? 'text-green-500' :
-                    bot.risk_parameters.risk_level === 'medium' ? 'text-amber-500' : 'text-red-500'
-                  }`} />
-                  <span>المخاطرة: {
-                    bot.risk_parameters.risk_level === 'low' ? 'منخفضة' :
-                    bot.risk_parameters.risk_level === 'medium' ? 'متوسطة' : 'عالية'
-                  }</span>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="glass-morphism hover:scale-105 smooth-transition flex items-center">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                إضافة حساب جديد
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>إضافة حساب تداول جديد</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="account-name">اسم الحساب</Label>
+                  <Input 
+                    id="account-name" 
+                    placeholder="أدخل اسم الحساب" 
+                    value={newAccountName}
+                    onChange={(e) => setNewAccountName(e.target.value)}
+                  />
                 </div>
-              )}
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="platform">منصة التداول</Label>
+                  <select 
+                    id="platform"
+                    className="flex h-10 w-full rounded-md border border-hamzah-200 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-hamzah-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={newAccountPlatform}
+                    onChange={(e) => setNewAccountPlatform(e.target.value)}
+                  >
+                    <option value="Binance">Binance</option>
+                    <option value="Bybit">Bybit</option>
+                    <option value="KuCoin">KuCoin</option>
+                    <option value="MT4">MetaTrader 4</option>
+                    <option value="MT5">MetaTrader 5</option>
+                  </select>
+                </div>
+                <Button 
+                  className="w-full"
+                  onClick={handleCreateAccount}
+                  disabled={isCreating}
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      جاري الإنشاء...
+                    </>
+                  ) : "إنشاء الحساب"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </motion.div>
+
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-12 w-12 animate-spin text-hamzah-600 dark:text-hamzah-300" />
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        ) : accounts.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16"
+          >
+            <WalletCards className="h-16 w-16 text-hamzah-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-hamzah-800 dark:text-hamzah-100 mb-2">
+              لا توجد حسابات تداول
+            </h2>
+            <p className="text-hamzah-600 dark:text-hamzah-300 mb-6">
+              قم بإضافة حساب تداول جديد للبدء في التداول الآلي
+            </p>
+            <Button 
+              className="glass-morphism hover:scale-105 smooth-transition"
+              onClick={() => setIsAddDialogOpen(true)}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              إضافة حساب الآن
+            </Button>
+          </motion.div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6">
+            {accounts.map((account) => (
+              <motion.div
+                key={account.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <Card className="glass-morphism p-6">
+                  {account.is_api_verified && account.is_active && (
+                    <Alert 
+                      className={account.connection_status ? 
+                        "bg-red-50 border-red-300 text-red-900 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300 mb-4" :
+                        "bg-yellow-50 border-yellow-300 text-yellow-900 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300 mb-4"
+                      }
+                    >
+                      <AlertTriangle className="h-5 w-5" />
+                      <AlertTitle className="font-bold">
+                        {account.connection_status ? 
+                          "تنبيه: تداول حقيقي يؤثر على أموالك الفعلية!" : 
+                          "تنبيه: الاتصال غير متاح حاليًا"
+                        }
+                      </AlertTitle>
+                      <AlertDescription>
+                        {account.connection_status ? 
+                          "هذا الحساب متصل ونشط للتداول الحقيقي. أي صفقات يقوم بها الروبوت ستستخدم أموالك الحقيقية." :
+                          "لا يمكن بدء التداول الحقيقي حاليًا لأن الاتصال غير متاح. تحقق من مفاتيح API."
+                        }
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                        {account.account_name}
+                      </h2>
+                      <div className="flex items-center text-hamzah-600 dark:text-hamzah-300 mt-1">
+                        <span>{account.platform}</span>
+                        <Badge 
+                          variant={account.is_active ? "outline" : "secondary"}
+                          className="mr-2"
+                        >
+                          {account.is_active ? "نشط" : "معطل"}
+                        </Badge>
+                        {account.connection_status ? (
+                          <Badge 
+                            variant="outline"
+                            className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mx-2"
+                          >
+                            متصل
+                          </Badge>
+                        ) : (
+                          <Badge 
+                            variant="outline"
+                            className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 mx-2"
+                          >
+                            غير متصل
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleSyncAccount(account.id)}
+                        disabled={isSyncing || !account.is_api_verified}
+                      >
+                        {isSyncing && selectedAccount?.id === account.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={account.is_active}
+                          onCheckedChange={() => handleToggleAccountStatus(account.id, account.is_active)}
+                        />
+                      </div>
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedAccount(account);
+                          setApiKey(account.api_key || "");
+                          setApiSecret(account.api_secret || "");
+                        }}
+                      >
+                        <Wrench className="h-4 w-4 ml-2" />
+                        إعدادات
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div className="p-4 border border-hamzah-200 dark:border-hamzah-700 rounded-lg">
+                      <h3 className="text-sm font-medium text-hamzah-600 dark:text-hamzah-400">
+                        الرصيد
+                      </h3>
+                      <p className="text-2xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                        ${account.balance ? account.balance.toLocaleString() : '0.00'}
+                      </p>
+                    </div>
+                    <div className="p-4 border border-hamzah-200 dark:border-hamzah-700 rounded-lg">
+                      <h3 className="text-sm font-medium text-hamzah-600 dark:text-hamzah-400">
+                        قيمة الحساب
+                      </h3>
+                      <p className="text-2xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                        ${account.equity ? account.equity.toLocaleString() : '0.00'}
+                      </p>
+                    </div>
+                    <div className="p-4 border border-hamzah-200 dark:border-hamzah-700 rounded-lg">
+                      <h3 className="text-sm font-medium text-hamzah-600 dark:text-hamzah-400">
+                        الرافعة المالية
+                      </h3>
+                      <p className="text-2xl font-bold text-hamzah-800 dark:text-hamzah-100">
+                        {account.leverage}x
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {account.is_api_verified ? (
+                    <div className="mt-4 p-4 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <div className="flex items-center">
+                        <CheckCircle className="h-5 w-5 text-green-500 ml-2" />
+                        <p className="text-green-700 dark:text-green-300">
+                          تم التحقق من مفاتيح API بنجاح
+                        </p>
+                      </div>
+                      <p className="text-sm text-green-600 dark:text-green-400 mr-7 mt-1">
+                        آخر مزامنة: {account.last_sync_time ? new Date(account.last_sync_time).toLocaleString('ar-SA') : 'لم تتم المزامنة بعد'}
+                      </p>
+                      
+                      {account.is_active && account.connection_status && (
+                        <div className="flex items-center mt-2">
+                          <DollarSign className="h-5 w-5 text-red-500 ml-2" />
+                          <p className="text-red-700 dark:text-red-300 font-medium">
+                            التداول الحقيقي مفعل على هذا الحساب!
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-4 p-4 border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                      <div className="flex items-center">
+                        <AlertOctagon className="h-5 w-5 text-yellow-500 ml-2" />
+                        <p className="text-yellow-700 dark:text-yellow-300">
+                          لم يتم ربط مفاتيح API بعد
+                        </p>
+                      </div>
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400 mr-7 mt-1">
+                        قم بإعداد مفاتيح API للبدء في التداول الآلي
+                      </p>
+                    </div>
+                  )}
+                  
+                  {accountAnalysis && accountAnalysis.accountId === account.id && accountAnalysis.isRealTrading && (
+                    <div className="mt-4 p-4 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                      <h3 className="font-bold text-red-800 dark:text-red-300 mb-2 flex items-center">
+                        <AlertTriangle className="h-5 w-5 mr-2" />
+                        معلومات هامة عن التداول الحقيقي
+                      </h3>
+                      <ul className="list-disc list-inside space-y-1 text-red-700 dark:text-red-400">
+                        {accountAnalysis.warnings?.map((warning: string, index: number) => (
+                          <li key={index}>{warning}</li>
+                        ))}
+                      </ul>
+                      {accountAnalysis.recommendedSettings && (
+                        <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-700">
+                          <p className="font-medium text-red-800 dark:text-red-300">الإعدادات الموصى بها:</p>
+                          <p className="text-red-700 dark:text-red-400">الحد الأقصى للمخاطرة: {accountAnalysis.recommendedSettings.maxRiskPerTrade}%</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {selectedAccount?.id === account.id && (
+                    <div className="mt-6 border-t border-hamzah-200 dark:border-hamzah-700 pt-4">
+                      <Tabs defaultValue="api">
+                        <TabsList className="mb-4">
+                          <TabsTrigger value="api">إعدادات API</TabsTrigger>
+                          <TabsTrigger value="risk">إعدادات المخاطر</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="api">
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="api-key">مفتاح API</Label>
+                              <Input 
+                                id="api-key" 
+                                placeholder="أدخل مفتاح API" 
+                                value={apiKey}
+                                onChange={(e) => setApiKey(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="api-secret">كلمة سر API</Label>
+                              <Input 
+                                id="api-secret" 
+                                type="password"
+                                placeholder="أدخل كلمة سر API" 
+                                value={apiSecret}
+                                onChange={(e) => setApiSecret(e.target.value)}
+                              />
+                            </div>
+                            
+                            <div className="flex items-center">
+                              <Link2 className="h-4 w-4 text-hamzah-600 dark:text-hamzah-400 ml-2" />
+                              <a 
+                                href={`https://${account.platform.toLowerCase()}.com/account/api`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-hamzah-600 dark:text-hamzah-400 hover:underline"
+                              >
+                                كيفية الحصول على مفاتيح API من {account.platform}
+                              </a>
+                            </div>
+                            
+                            <div className="flex justify-between mt-4">
+                              <Button 
+                                variant="outline"
+                                onClick={() => setSelectedAccount(null)}
+                              >
+                                إلغاء
+                              </Button>
+                              <Button 
+                                onClick={() => handleSaveCredentials(account.id)}
+                                disabled={isSaving}
+                              >
+                                {isSaving ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    جاري الحفظ...
+                                  </>
+                                ) : "حفظ وتحقق"}
+                              </Button>
+                            </div>
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="risk">
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="risk-level">مستوى المخاطرة</Label>
+                              <select 
+                                id="risk-level"
+                                className="flex h-10 w-full rounded-md border border-hamzah-200 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-hamzah-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={account.risk_level}
+                                onChange={async (e) => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('trading_accounts')
+                                      .update({ risk_level: e.target.value })
+                                      .eq('id', account.id);
+                                      
+                                    if (error) throw error;
+                                    
+                                    toast({
+                                      title: "تم تحديث مستوى المخاطرة",
+                                      description: "تم تحديث إعدادات المخاطرة بنجاح"
+                                    });
+                                    
+                                    fetchAccounts();
+                                  } catch (error: any) {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "خطأ في تحديث إعدادات المخاطرة",
+                                      description: error.message
+                                    });
+                                  }
+                                }}
+                              >
+                                <option value="low">منخفض</option>
+                                <option value="medium">متوسط</option>
+                                <option value="high">عالي</option>
+                              </select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="max-drawdown">
+                                الحد الأقصى للسحب (%)
+                                <span className="text-sm text-hamzah-500 mr-2">
+                                  (الخسارة المسموح بها كنسبة من رأس المال)
+                                </span>
+                              </Label>
+                              <Input 
+                                id="max-drawdown" 
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={account.max_drawdown}
+                                onChange={async (e) => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('trading_accounts')
+                                      .update({ max_drawdown: parseFloat(e.target.value) })
+                                      .eq('id', account.id);
+                                      
+                                    if (error) throw error;
+                                    
+                                    toast({
+                                      title: "تم تحديث إعدادات المخاطرة",
+                                      description: "تم تحديث الحد الأقصى للسحب بنجاح"
+                                    });
+                                    
+                                    fetchAccounts();
+                                  } catch (error: any) {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "خطأ في تحديث إعدادات المخاطرة",
+                                      description: error.message
+                                    });
+                                  }
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="daily-profit-target">
+                                هدف الربح اليومي (%)
+                                <span className="text-sm text-hamzah-500 mr-2">
+                                  (نسبة الربح المستهدفة يومياً)
+                                </span>
+                              </Label>
+                              <Input 
+                                id="daily-profit-target" 
+                                type="number"
+                                min="0.1"
+                                max="100"
+                                step="0.1"
+                                value={account.daily_profit_target}
+                                onChange={async (e) => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('trading_accounts')
+                                      .update({ daily_profit_target: parseFloat(e.target.value) })
+                                      .eq('id', account.id);
+                                      
+                                    if (error) throw error;
+                                    
+                                    toast({
+                                      title: "تم تحديث إعدادات المخاطرة",
+                                      description: "تم تحديث هدف الربح اليومي بنجاح"
+                                    });
+                                    
+                                    fetchAccounts();
+                                  } catch (error: any) {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "خطأ في تحديث إعدادات المخاطرة",
+                                      description: error.message
+                                    });
+                                  }
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="flex justify-between mt-4">
+                              <Button 
+                                variant="outline"
+                                onClick={() => setSelectedAccount(null)}
+                              >
+                                إغلاق
+                              </Button>
+                              <Button 
+                                onClick={() => {
+                                  toast({
+                                    title: "تم حفظ الإعدادات",
+                                    description: "تم حفظ إعدادات المخاطرة بنجاح"
+                                  });
+                                  setSelectedAccount(null);
+                                }}
+                              >
+                                حفظ الإعدادات
+                              </Button>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

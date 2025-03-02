@@ -9,27 +9,25 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Default headers for all requests
+const defaultHeaders = {
+  'apikey': SUPABASE_PUBLISHABLE_KEY,
+  'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+  'X-Trading-Mode': 'real',
+  'X-Client-Info': 'trading-app'
+};
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true
   },
   global: {
-    headers: {
-      'apikey': SUPABASE_PUBLISHABLE_KEY,
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-      'X-Trading-Mode': 'real',
-      'X-Client-Info': 'trading-app'
-    },
+    // Apply headers globally
+    headers: defaultHeaders,
+    // Custom fetch implementation to ensure headers are always present
     fetch: (...args) => {
-      // For custom fetch logic while maintaining required headers
       const [url, options = {}] = args;
-      const defaultHeaders = {
-        'apikey': SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-        'X-Trading-Mode': 'real',
-        'X-Client-Info': 'trading-app'
-      };
       
       return fetch(url, {
         ...options,
@@ -41,3 +39,16 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     }
   }
 });
+
+// Set additional default headers for all supabase requests
+supabase.functions.setAuth(SUPABASE_PUBLISHABLE_KEY);
+
+// Export a helper function to reset headers in case they get lost in any scenario
+export const resetSupabaseHeaders = () => {
+  supabase.functions.setAuth(SUPABASE_PUBLISHABLE_KEY);
+  
+  // Re-apply headers to the internal supabase client
+  Object.entries(defaultHeaders).forEach(([key, value]) => {
+    supabase.rest.headers.set(key, value);
+  });
+};
