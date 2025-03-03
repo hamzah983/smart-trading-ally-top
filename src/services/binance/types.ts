@@ -1,4 +1,3 @@
-
 export interface TradingAccount {
   id: string;
   account_name: string;
@@ -15,6 +14,11 @@ export interface TradingAccount {
   trading_mode?: 'real' | 'demo' | 'paper';
   created_at?: string;
   updated_at?: string;
+  leverage?: number;
+  last_sync_time?: string;
+  risk_level?: 'low' | 'medium' | 'high';
+  max_drawdown?: number;
+  daily_profit_target?: number;
 }
 
 export interface PlaceOrderParams {
