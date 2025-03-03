@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, PlusCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AddAccountDialogProps {
   isOpen: boolean;
@@ -35,37 +36,45 @@ const AddAccountDialog = ({
           إضافة حساب جديد
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>إضافة حساب تداول جديد</DialogTitle>
+          <DialogTitle className="text-xl font-bold">إضافة حساب تداول جديد</DialogTitle>
+          <DialogDescription>
+            قم بإدخال المعلومات الأساسية لإضافة حساب تداول جديد
+          </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-6 py-4">
           <div className="space-y-2">
-            <Label htmlFor="account-name">اسم الحساب</Label>
+            <Label htmlFor="account-name" className="text-right block">اسم الحساب</Label>
             <Input 
               id="account-name" 
+              dir="rtl"
               placeholder="أدخل اسم الحساب" 
               value={newAccountName}
               onChange={(e) => setNewAccountName(e.target.value)}
+              className="focus:ring-2 focus:ring-hamzah-400"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="platform">منصة التداول</Label>
-            <select 
-              id="platform"
-              className="flex h-10 w-full rounded-md border border-hamzah-200 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-hamzah-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            <Label htmlFor="platform" className="text-right block">منصة التداول</Label>
+            <Select
               value={newAccountPlatform}
-              onChange={(e) => setNewAccountPlatform(e.target.value)}
+              onValueChange={setNewAccountPlatform}
             >
-              <option value="Binance">Binance</option>
-              <option value="Bybit">Bybit</option>
-              <option value="KuCoin">KuCoin</option>
-              <option value="MT4">MetaTrader 4</option>
-              <option value="MT5">MetaTrader 5</option>
-            </select>
+              <SelectTrigger id="platform" className="w-full">
+                <SelectValue placeholder="اختر منصة التداول" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Binance">Binance</SelectItem>
+                <SelectItem value="Bybit">Bybit</SelectItem>
+                <SelectItem value="KuCoin">KuCoin</SelectItem>
+                <SelectItem value="MT4">MetaTrader 4</SelectItem>
+                <SelectItem value="MT5">MetaTrader 5</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <Button 
-            className="w-full"
+            className="w-full bg-gradient-to-r from-hamzah-500 to-hamzah-600 hover:from-hamzah-600 hover:to-hamzah-700 text-white"
             onClick={handleCreateAccount}
             disabled={isCreating}
           >

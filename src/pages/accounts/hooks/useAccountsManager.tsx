@@ -93,7 +93,7 @@ export const useAccountsManager = () => {
         return;
       }
       
-      // Create new account
+      // Create new account - Fix: Adding proper Content-Type header
       const { data, error } = await supabase
         .from('trading_accounts')
         .insert({
@@ -106,7 +106,12 @@ export const useAccountsManager = () => {
           leverage: 100,
           risk_level: 'medium',
           max_drawdown: 10.0,
-          daily_profit_target: 2.0
+          daily_profit_target: 2.0,
+          trading_mode: 'real' // Default to real trading mode
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
         })
         .select();
         
