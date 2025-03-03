@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { saveApiCredentials, syncAccount, performRealTradingAnalysis } from "@/services/binance/accountService";
+import { supabase, resetSupabaseHeaders } from "@/integrations/supabase/client";
+import { saveApiCredentials, syncAccount, performRealTradingAnalysis, changeTradingMode } from "@/services/binance/accountService";
 import { TradingAccount } from "@/services/binance/types";
 
 export const useAccountsManager = () => {
@@ -18,6 +18,7 @@ export const useAccountsManager = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [accountAnalysis, setAccountAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isChangingMode, setIsChangingMode] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -252,6 +253,49 @@ export const useAccountsManager = () => {
     }
   };
 
+  const handleChangeTradingMode = async (accountId: string, mode: 'real' | 'demo') => {
+    try {
+      setIsChangingMode(true);
+      
+      const result = await changeTradingMode(accountId, mode);
+      
+      if (result.success) {
+        toast({
+          title: "تم تغيير وضع التداول",
+          description: `تم تغيير وضع التداول إلى ${mode === 'real' ? 'التداول الحقيقي' : 'وضع المحاكاة (التداول التجريبي)'}`
+        });
+        
+        fetchAccounts();
+        
+        if (mode === 'real') {
+          toast({
+            variant: "destructive",
+            title: "تنبيه هام",
+            description: "تم تفعيل وضع التداول الحقيقي. سيتم استخدام أموالك الفعلية!",
+            duration: 10000,
+          });
+          
+          await analyzeAccountForRealTrading(accountId);
+        }
+      } else {
+        toast({
+          variant: "destructive",
+          title: "خطأ في تغيير وضع التداول",
+          description: result.message
+        });
+      }
+    } catch (error: any) {
+      console.error("Error changing trading mode:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في تغيير وضع التداول",
+        description: error.message
+      });
+    } finally {
+      setIsChangingMode(false);
+    }
+  };
+
   return {
     accounts,
     loading,
@@ -272,10 +316,12 @@ export const useAccountsManager = () => {
     isCreating,
     accountAnalysis,
     isAnalyzing,
+    isChangingMode,
     fetchAccounts,
     handleCreateAccount,
     handleSaveCredentials,
     handleSyncAccount,
-    handleToggleAccountStatus
+    handleToggleAccountStatus,
+    handleChangeTradingMode
   };
 };

@@ -451,3 +451,62 @@ export const performRealTradingAnalysis = async (accountId: string): Promise<Acc
     };
   }
 };
+
+/**
+ * Changes the trading mode for an account between real trading and demo mode
+ */
+export const changeTradingMode = async (
+  accountId: string,
+  mode: 'real' | 'demo'
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log(`Changing trading mode to ${mode} for account:`, accountId);
+    
+    // Update the trading mode in the database
+    const { error: updateError } = await supabase
+      .from('trading_accounts')
+      .update({
+        trading_mode: mode
+      })
+      .eq('id', accountId);
+
+    if (updateError) throw new Error(updateError.message);
+    
+    // Get client with updated headers for the new mode
+    const client = resetSupabaseHeaders(mode);
+    
+    // Test the connection with the new mode
+    const { data, error } = await client.functions.invoke('binance-api', {
+      body: { 
+        action: 'set_trading_mode',
+        accountId,
+        mode
+      }
+    });
+
+    if (error) throw new Error(error.message);
+    
+    if (mode === 'real') {
+      // If switching to real mode, verify trading permissions
+      const tradingPermissions = await verifyTradingPermissions(accountId);
+      
+      if (!tradingPermissions.success) {
+        return {
+          success: true,
+          message: `تم تغيير وضع التداول إلى ${mode === 'real' ? 'التداول الحقيقي' : 'وضع المحاكاة'}, ولكن قد تكون هناك قيود على الصلاحيات: ${tradingPermissions.message}`
+        };
+      }
+    }
+    
+    return {
+      success: true,
+      message: `تم تغيير وضع التداول إلى ${mode === 'real' ? 'التداول الحقيقي' : 'وضع المحاكاة'} بنجاح`
+    };
+  } catch (error) {
+    console.error('Error changing trading mode:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to change trading mode'
+    };
+  }
+};

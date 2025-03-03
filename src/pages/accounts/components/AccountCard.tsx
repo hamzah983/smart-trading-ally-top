@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
@@ -13,6 +12,16 @@ import {
 import { TradingAccount } from "@/services/binance/types";
 import AccountSettings from "./AccountSettings";
 import AccountAnalysis from "./AccountAnalysis";
+import { 
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface AccountCardProps {
   account: TradingAccount;
@@ -29,6 +38,7 @@ interface AccountCardProps {
   handleSaveCredentials: (accountId: string) => Promise<void>;
   isSaving: boolean;
   fetchAccounts: () => Promise<void>;
+  handleChangeTradingMode?: (accountId: string, mode: 'real' | 'demo') => Promise<void>;
 }
 
 const AccountCard = ({
@@ -45,8 +55,19 @@ const AccountCard = ({
   apiSecret,
   handleSaveCredentials,
   isSaving,
-  fetchAccounts
+  fetchAccounts,
+  handleChangeTradingMode
 }: AccountCardProps) => {
+  const [isChangingMode, setIsChangingMode] = useState(false);
+  
+  const onTradingModeChange = async (value: string) => {
+    if (handleChangeTradingMode) {
+      setIsChangingMode(true);
+      await handleChangeTradingMode(account.id, value as 'real' | 'demo');
+      setIsChangingMode(false);
+    }
+  };
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -55,7 +76,7 @@ const AccountCard = ({
       <Card className="glass-morphism p-6">
         {account.is_api_verified && account.is_active && (
           <Alert 
-            className={account.connection_status ? 
+            className={account.connection_status && account.trading_mode === 'real' ? 
               "bg-red-50 border-red-300 text-red-900 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300 mb-4" :
               "bg-yellow-50 border-yellow-300 text-yellow-900 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300 mb-4"
             }
@@ -63,14 +84,20 @@ const AccountCard = ({
             <AlertTriangle className="h-5 w-5" />
             <AlertTitle className="font-bold">
               {account.connection_status ? 
-                "تنبيه: تداول حقيقي يؤثر على أموالك الفعلية!" : 
+                (account.trading_mode === 'real' ? 
+                  "تنبيه: تداول حقيقي يؤثر على أموالك الفعلية!" : 
+                  "تنبيه: وضع المحاكاة (تداول تجريبي)"
+                ) : 
                 "تنبيه: الاتصال غير متاح حاليًا"
               }
             </AlertTitle>
             <AlertDescription>
               {account.connection_status ? 
-                "هذا الحساب متصل ونشط للتداول الحقيقي. أي صفقات يقوم بها الروبوت ستستخدم أموالك الحقيقية." :
-                "لا يمكن بدء التداول الحقيقي حاليًا لأن الاتصال غير متاح. تحقق من مفاتيح API."
+                (account.trading_mode === 'real' ? 
+                  "هذا الحساب متصل ونشط للتداول الحقيقي. أي صفقات يقوم بها الروبوت ستستخدم أموالك الحقيقية." :
+                  "هذا الحساب في وضع المحاكاة. الصفقات التي يقوم بها الروبوت لن تؤثر على أموالك الحقيقية."
+                ) :
+                "لا يمكن بدء التداول حاليًا لأن الاتصال غير متاح. تحقق من مفاتيح API."
               }
             </AlertDescription>
           </Alert>
@@ -102,6 +129,18 @@ const AccountCard = ({
                   className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 mx-2"
                 >
                   غير متصل
+                </Badge>
+              )}
+              
+              {account.trading_mode && (
+                <Badge 
+                  variant="outline"
+                  className={account.trading_mode === 'real' ? 
+                    "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 mx-2" : 
+                    "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mx-2"
+                  }
+                >
+                  {account.trading_mode === 'real' ? "تداول حقيقي" : "تداول تجريبي"}
                 </Badge>
               )}
             </div>
@@ -138,6 +177,28 @@ const AccountCard = ({
             </Button>
           </div>
         </div>
+        
+        {account.is_api_verified && (
+          <div className="mt-4 flex items-center">
+            <Label htmlFor="tradingMode" className="ml-2">وضع التداول:</Label>
+            <Select
+              value={account.trading_mode || 'real'}
+              onValueChange={onTradingModeChange}
+              disabled={isChangingMode || !account.is_api_verified}
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="حدد وضع التداول" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="real">تداول حقيقي</SelectItem>
+                  <SelectItem value="demo">تداول تجريبي (محاكاة)</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {isChangingMode && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          </div>
+        )}
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <div className="p-4 border border-hamzah-200 dark:border-hamzah-700 rounded-lg">
@@ -178,11 +239,20 @@ const AccountCard = ({
               آخر مزامنة: {account.last_sync_time ? new Date(account.last_sync_time).toLocaleString('ar-SA') : 'لم تتم المزامنة بعد'}
             </p>
             
-            {account.is_active && account.connection_status && (
+            {account.is_active && account.connection_status && account.trading_mode === 'real' && (
               <div className="flex items-center mt-2">
                 <DollarSign className="h-5 w-5 text-red-500 ml-2" />
                 <p className="text-red-700 dark:text-red-300 font-medium">
                   التداول الحقيقي مفعل على هذا الحساب!
+                </p>
+              </div>
+            )}
+            
+            {account.is_active && account.connection_status && account.trading_mode === 'demo' && (
+              <div className="flex items-center mt-2">
+                <CheckCircle className="h-5 w-5 text-blue-500 ml-2" />
+                <p className="text-blue-700 dark:text-blue-300 font-medium">
+                  وضع المحاكاة (التداول التجريبي) مفعل
                 </p>
               </div>
             )}
@@ -201,7 +271,7 @@ const AccountCard = ({
           </div>
         )}
         
-        {accountAnalysis && accountAnalysis.accountId === account.id && accountAnalysis.isRealTrading && (
+        {accountAnalysis && accountAnalysis.accountId === account.id && accountAnalysis.isRealTrading && account.trading_mode === 'real' && (
           <AccountAnalysis accountAnalysis={accountAnalysis} />
         )}
         
