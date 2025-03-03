@@ -23,11 +23,15 @@ export const supabase = createClient(
 // Reset headers function to add custom headers for trading
 export const resetSupabaseHeaders = () => {
   console.info('Headers reset for Supabase client');
-  supabase.headers = {
+  // Use the correct method to set headers without directly accessing protected property
+  const defaultHeaders = {
     'Content-Type': 'application/json',
     'x-client-info': 'trading-app',
     'x-trading-mode': 'real'
   };
+  
+  // Return a new instance of the client with updated headers
+  return { ...supabase, headers: defaultHeaders };
 };
 
 // Initialize headers on load

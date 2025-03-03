@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +28,6 @@ export const useAccountsManager = () => {
     try {
       setLoading(true);
       
-      // Get user session
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session?.user) {
         toast({
@@ -41,7 +39,6 @@ export const useAccountsManager = () => {
         return;
       }
       
-      // Fetch user's trading accounts
       const { data, error } = await supabase
         .from('trading_accounts')
         .select('*')
@@ -50,7 +47,6 @@ export const useAccountsManager = () => {
         
       if (error) throw error;
       
-      // Ensure the data matches the TradingAccount interface
       const typedData: TradingAccount[] = data?.map(account => ({
         ...account,
         risk_level: account.risk_level as 'low' | 'medium' | 'high'
@@ -82,7 +78,6 @@ export const useAccountsManager = () => {
       
       setIsCreating(true);
       
-      // Get user session
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session?.user) {
         toast({
@@ -93,7 +88,6 @@ export const useAccountsManager = () => {
         return;
       }
       
-      // Create new account - Fix: Adding proper Content-Type header
       const { data, error } = await supabase
         .from('trading_accounts')
         .insert({
@@ -108,10 +102,6 @@ export const useAccountsManager = () => {
           max_drawdown: 10.0,
           daily_profit_target: 2.0,
           trading_mode: 'real' // Default to real trading mode
-        }, {
-          headers: {
-            'Content-Type': 'application/json'
-          }
         })
         .select();
         
@@ -122,12 +112,10 @@ export const useAccountsManager = () => {
         description: `تم إنشاء حساب "${newAccountName}" بنجاح`
       });
       
-      // Reset form and close dialog
       setNewAccountName("");
       setNewAccountPlatform("Binance");
       setIsAddDialogOpen(false);
       
-      // Refresh accounts list
       fetchAccounts();
       
     } catch (error: any) {
@@ -155,7 +143,6 @@ export const useAccountsManager = () => {
       
       setIsSaving(true);
       
-      // Save and verify API credentials
       const result = await saveApiCredentials(accountId, apiKey, apiSecret);
       
       if (result.success) {
@@ -164,7 +151,6 @@ export const useAccountsManager = () => {
           description: "تم التحقق من مفاتيح API والاتصال بالمنصة"
         });
         
-        // Refresh accounts list
         fetchAccounts();
       } else {
         toast({
@@ -189,7 +175,6 @@ export const useAccountsManager = () => {
     try {
       setIsSyncing(true);
       
-      // Sync account with exchange platform
       const result = await syncAccount(accountId);
       
       if (result.success) {
@@ -198,10 +183,8 @@ export const useAccountsManager = () => {
           description: "تم تحديث بيانات الرصيد والمراكز المفتوحة"
         });
         
-        // Refresh accounts list
         fetchAccounts();
         
-        // Analyze the account for real trading
         await analyzeAccountForRealTrading(accountId);
       } else {
         toast({
@@ -246,7 +229,6 @@ export const useAccountsManager = () => {
 
   const handleToggleAccountStatus = async (accountId: string, currentStatus: boolean) => {
     try {
-      // Update account status
       const { error } = await supabase
         .from('trading_accounts')
         .update({ is_active: !currentStatus })
@@ -259,7 +241,6 @@ export const useAccountsManager = () => {
         description: `تم ${currentStatus ? 'تعطيل' : 'تفعيل'} الحساب بنجاح`
       });
       
-      // Refresh accounts list
       fetchAccounts();
     } catch (error: any) {
       console.error("Error toggling account status:", error);
