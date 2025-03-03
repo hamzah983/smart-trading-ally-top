@@ -26,11 +26,13 @@ const AccountsPage = () => {
     setNewAccountPlatform,
     isCreating,
     accountAnalysis,
+    isChangingMode,
     fetchAccounts,
     handleCreateAccount,
     handleSaveCredentials,
     handleSyncAccount,
-    handleToggleAccountStatus
+    handleToggleAccountStatus,
+    handleChangeTradingMode
   } = useAccountsManager();
 
   return (
@@ -87,6 +89,8 @@ const AccountsPage = () => {
                 handleSaveCredentials={handleSaveCredentials}
                 isSaving={isSaving}
                 fetchAccounts={fetchAccounts}
+                handleChangeTradingMode={handleChangeTradingMode}
+                isChangingMode={isChangingMode}
               />
             ))}
           </div>

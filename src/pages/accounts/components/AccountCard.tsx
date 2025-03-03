@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
 
 interface AccountCardProps {
   account: TradingAccount;
@@ -39,6 +40,7 @@ interface AccountCardProps {
   isSaving: boolean;
   fetchAccounts: () => Promise<void>;
   handleChangeTradingMode?: (accountId: string, mode: 'real' | 'demo') => Promise<void>;
+  isChangingMode?: boolean;
 }
 
 const AccountCard = ({
@@ -56,15 +58,33 @@ const AccountCard = ({
   handleSaveCredentials,
   isSaving,
   fetchAccounts,
-  handleChangeTradingMode
+  handleChangeTradingMode,
+  isChangingMode: externalIsChangingMode
 }: AccountCardProps) => {
-  const [isChangingMode, setIsChangingMode] = useState(false);
+  const [internalIsChangingMode, setInternalIsChangingMode] = useState(false);
+  const { toast } = useToast();
+  
+  const isChangingMode = externalIsChangingMode !== undefined ? externalIsChangingMode : internalIsChangingMode;
   
   const onTradingModeChange = async (value: string) => {
     if (handleChangeTradingMode) {
-      setIsChangingMode(true);
-      await handleChangeTradingMode(account.id, value as 'real' | 'demo');
-      setIsChangingMode(false);
+      try {
+        setInternalIsChangingMode(true);
+        await handleChangeTradingMode(account.id, value as 'real' | 'demo');
+        
+        toast({
+          title: "تم تغيير وضع التداول",
+          description: `تم التغيير إلى ${value === 'real' ? 'التداول الحقيقي' : 'التداول التجريبي'} بنجاح`
+        });
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "خطأ في تغيير وضع التداول",
+          description: error instanceof Error ? error.message : "حدث خطأ غير معروف"
+        });
+      } finally {
+        setInternalIsChangingMode(false);
+      }
     }
   };
   

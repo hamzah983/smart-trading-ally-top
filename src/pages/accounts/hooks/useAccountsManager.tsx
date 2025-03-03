@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
-import { supabase, resetSupabaseHeaders } from "@/integrations/supabase/client";
+import { supabase, getClientWithTradingMode } from "@/integrations/supabase/client";
 import { saveApiCredentials, syncAccount, performRealTradingAnalysis, changeTradingMode } from "@/services/binance/accountService";
 import { TradingAccount } from "@/services/binance/types";
 
@@ -40,17 +41,21 @@ export const useAccountsManager = () => {
         return;
       }
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('trading_accounts')
         .select('*')
         .eq('user_id', sessionData.session.user.id)
         .order('created_at', { ascending: false });
+      
+      const { data, error } = await query;
         
       if (error) throw error;
       
       const typedData: TradingAccount[] = data?.map(account => ({
         ...account,
-        risk_level: account.risk_level as 'low' | 'medium' | 'high'
+        risk_level: account.risk_level as 'low' | 'medium' | 'high',
+        // Ensure trading_mode exists, default to 'real' if not
+        trading_mode: account.trading_mode || 'real'
       })) || [];
       
       setAccounts(typedData);
@@ -89,24 +94,73 @@ export const useAccountsManager = () => {
         return;
       }
       
-      const { data, error } = await supabase
-        .from('trading_accounts')
-        .insert({
-          user_id: sessionData.session.user.id,
-          account_name: newAccountName,
-          platform: newAccountPlatform,
-          is_active: true,
-          balance: 0,
-          equity: 0,
-          leverage: 100,
-          risk_level: 'medium',
-          max_drawdown: 10.0,
-          daily_profit_target: 2.0,
-          trading_mode: 'real' // Default to real trading mode
-        })
-        .select();
-        
-      if (error) throw error;
+      // Prepare account data with required fields
+      const accountData = {
+        user_id: sessionData.session.user.id,
+        account_name: newAccountName,
+        platform: newAccountPlatform,
+        is_active: true,
+        balance: 0,
+        equity: 0,
+        leverage: 100,
+        risk_level: 'medium',
+        max_drawdown: 10.0,
+        daily_profit_target: 2.0
+      };
+      
+      // Check if trading_mode column exists
+      let includesTradingMode = false;
+      try {
+        // Try adding trading_mode and see if it works
+        const testData = {...accountData, trading_mode: 'real'};
+        const { error: testError } = await supabase
+          .from('trading_accounts')
+          .insert(testData)
+          .select();
+          
+        // If no error, the column exists
+        if (!testError) {
+          includesTradingMode = true;
+          // If we created a test account, delete it
+          const { data: testResponse } = await supabase
+            .from('trading_accounts')
+            .select('id')
+            .eq('user_id', sessionData.session.user.id)
+            .eq('account_name', newAccountName)
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+          if (testResponse && testResponse.length > 0) {
+            await supabase
+              .from('trading_accounts')
+              .delete()
+              .eq('id', testResponse[0].id);
+          }
+        }
+      } catch (err) {
+        console.warn('Error checking trading_mode column:', err);
+      }
+      
+      // Add trading_mode if the column exists
+      if (includesTradingMode) {
+        const { data, error } = await supabase
+          .from('trading_accounts')
+          .insert({
+            ...accountData,
+            trading_mode: 'real' // Default to real trading mode
+          })
+          .select();
+          
+        if (error) throw error;
+      } else {
+        // Insert without trading_mode
+        const { data, error } = await supabase
+          .from('trading_accounts')
+          .insert(accountData)
+          .select();
+          
+        if (error) throw error;
+      }
       
       toast({
         title: "تم إنشاء الحساب بنجاح",
