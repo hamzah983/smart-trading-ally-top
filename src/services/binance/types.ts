@@ -98,6 +98,7 @@ export interface TradingBot {
   profit_loss?: number;
   win_rate?: number;
   total_trades?: number;
+  trading_mode: 'real' | 'demo';
 }
 
 export interface BotSettings {

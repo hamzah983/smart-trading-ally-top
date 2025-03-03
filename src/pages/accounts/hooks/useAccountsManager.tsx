@@ -50,7 +50,13 @@ export const useAccountsManager = () => {
         
       if (error) throw error;
       
-      setAccounts(data || []);
+      // Ensure the data matches the TradingAccount interface
+      const typedData: TradingAccount[] = data?.map(account => ({
+        ...account,
+        risk_level: account.risk_level as 'low' | 'medium' | 'high'
+      })) || [];
+      
+      setAccounts(typedData);
     } catch (error: any) {
       console.error("Error fetching accounts:", error);
       toast({
