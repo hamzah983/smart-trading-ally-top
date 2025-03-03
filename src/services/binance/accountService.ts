@@ -1,4 +1,3 @@
-
 import { supabase, resetSupabaseHeaders } from "@/integrations/supabase/client";
 import { TradingAccount, MicroTradingOptions, AccountAnalysisResult, TradingPlatform } from "./types";
 
@@ -7,10 +6,10 @@ import { TradingAccount, MicroTradingOptions, AccountAnalysisResult, TradingPlat
  */
 export const testConnection = async (accountId: string): Promise<{ success: boolean; message: string }> => {
   try {
-    // Reset headers before making the request
-    resetSupabaseHeaders();
+    // Get client with updated headers
+    const client = resetSupabaseHeaders();
     
-    const { data, error } = await supabase.functions.invoke('binance-api', {
+    const { data, error } = await client.functions.invoke('binance-api', {
       body: { 
         action: 'test_connection',
         accountId
@@ -35,10 +34,10 @@ export const getAccountInfo = async (accountId: string): Promise<any> => {
   try {
     console.log('Fetching real account information for account ID:', accountId);
     
-    // Reset headers before making the request
-    resetSupabaseHeaders();
+    // Get client with updated headers
+    const client = resetSupabaseHeaders();
     
-    const { data, error } = await supabase.functions.invoke('binance-api', {
+    const { data, error } = await client.functions.invoke('binance-api', {
       body: { 
         action: 'get_account_info',
         accountId
@@ -70,8 +69,8 @@ export const syncAccount = async (accountId: string): Promise<{ success: boolean
   try {
     console.log('Syncing account with real trading verification:', accountId);
     
-    // Reset headers before making the request
-    resetSupabaseHeaders();
+    // Get client with updated headers
+    const client = resetSupabaseHeaders();
     
     // Start by testing the connection
     const connectionTest = await testConnection(accountId);
@@ -112,10 +111,10 @@ export const verifyTradingPermissions = async (
   accountId: string
 ): Promise<{ success: boolean; message: string; permissions?: string[] }> => {
   try {
-    // Reset headers before making the request
-    resetSupabaseHeaders();
+    // Get client with updated headers
+    const client = resetSupabaseHeaders();
     
-    const { data, error } = await supabase.functions.invoke('binance-api', {
+    const { data, error } = await client.functions.invoke('binance-api', {
       body: { 
         action: 'verify_trading_permissions',
         accountId
@@ -149,10 +148,7 @@ export const saveApiCredentials = async (
   try {
     console.log('Saving and verifying API credentials for real trading:', accountId);
     
-    // Reset headers before making the request
-    resetSupabaseHeaders();
-    
-    // First update the credentials in the database
+    // Update the credentials in the database with regular client
     const { error: updateError } = await supabase
       .from('trading_accounts')
       .update({
@@ -164,7 +160,7 @@ export const saveApiCredentials = async (
 
     if (updateError) throw new Error(updateError.message);
     
-    // Now test the connection
+    // Now test the connection using client with trading headers
     const connectionTest = await testConnection(accountId);
     
     // Verify trading permissions
