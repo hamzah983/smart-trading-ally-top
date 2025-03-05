@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Link2 } from "lucide-react";
+import { Loader2, Link2, AlertCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { TradingAccount } from "@/services/binance/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface AccountSettingsProps {
   account: TradingAccount;
@@ -16,7 +17,9 @@ interface AccountSettingsProps {
   setApiKey: (apiKey: string) => void;
   setApiSecret: (apiSecret: string) => void;
   handleSaveCredentials: (accountId: string) => Promise<void>;
+  handleTestConnection?: (accountId: string) => Promise<boolean>;
   isSaving: boolean;
+  isTestingConnection?: boolean;
   setSelectedAccount: (account: TradingAccount | null) => void;
   fetchAccounts: () => Promise<void>;
 }
@@ -28,11 +31,14 @@ const AccountSettings = ({
   setApiKey,
   setApiSecret,
   handleSaveCredentials,
+  handleTestConnection,
   isSaving,
+  isTestingConnection,
   setSelectedAccount,
   fetchAccounts
 }: AccountSettingsProps) => {
   const { toast } = useToast();
+  const [apiTips, setApiTips] = useState(false);
 
   return (
     <div className="mt-6 border-t border-hamzah-200 dark:border-hamzah-700 pt-4">
@@ -44,6 +50,28 @@ const AccountSettings = ({
         
         <TabsContent value="api">
           <div className="space-y-4">
+            {apiTips && (
+              <Alert>
+                <AlertCircle className="h-4 w-4 ml-2" />
+                <AlertDescription>
+                  <p className="mb-2 font-bold">نصائح لإعداد مفاتيح API:</p>
+                  <ul className="list-disc pr-5 space-y-1">
+                    <li>تأكد من تفعيل جميع عناوين IP في إعدادات المفتاح</li>
+                    <li>امنح صلاحيات القراءة (Enable Reading) على الأقل</li>
+                    <li>للتداول الحقيقي: فعّل صلاحيات التداول (Enable Trading)</li>
+                    <li>تأكد من أن المفتاح غير منتهي الصلاحية</li>
+                  </ul>
+                  <Button
+                    variant="link"
+                    className="p-0 mt-2"
+                    onClick={() => setApiTips(false)}
+                  >
+                    إغلاق
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="api-key">مفتاح API</Label>
               <Input 
@@ -74,6 +102,14 @@ const AccountSettings = ({
               >
                 كيفية الحصول على مفاتيح API من {account.platform}
               </a>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="mr-2 p-1 h-6" 
+                onClick={() => setApiTips(!apiTips)}
+              >
+                <AlertCircle className="h-3 w-3" />
+              </Button>
             </div>
             
             <div className="flex justify-between mt-4">
@@ -83,17 +119,35 @@ const AccountSettings = ({
               >
                 إلغاء
               </Button>
-              <Button 
-                onClick={() => handleSaveCredentials(account.id)}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    جاري الحفظ...
-                  </>
-                ) : "حفظ وتحقق"}
-              </Button>
+              
+              <div className="space-x-2 space-x-reverse">
+                {handleTestConnection && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => handleTestConnection(account.id)}
+                    disabled={isTestingConnection || !apiKey || !apiSecret}
+                  >
+                    {isTestingConnection ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        جاري الاختبار...
+                      </>
+                    ) : "اختبار الاتصال"}
+                  </Button>
+                )}
+                
+                <Button 
+                  onClick={() => handleSaveCredentials(account.id)}
+                  disabled={isSaving || !apiKey || !apiSecret}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      جاري الحفظ...
+                    </>
+                  ) : "حفظ وتحقق"}
+                </Button>
+              </div>
             </div>
           </div>
         </TabsContent>
