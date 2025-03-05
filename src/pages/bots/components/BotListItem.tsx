@@ -1,214 +1,231 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Card } from "@/components/ui/card";
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Play, Pause, Settings, TrendingUp, RefreshCw, AlertTriangle, DollarSign, FlaskConical } from "lucide-react";
-import { TradingBot } from "@/services/binance/types";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Loader2, BarChart2, Info, AlertTriangle, Clock } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { TradingBot, TradingAccount } from "@/services/binance/types";
+import { getBotStatus, startBot, stopBot } from "@/services/binance/tradingBotService";
+import { formatDistance } from 'date-fns';
+import { ar } from 'date-fns/locale';
 
 interface BotListItemProps {
   bot: TradingBot;
-  onToggle: (botId: string, status: boolean) => Promise<void>;
-  onEdit: (bot: TradingBot) => void;
-  onDelete: (botId: string) => Promise<void>;
-  onStart: (botId: string) => Promise<void>;
-  onStop: (botId: string) => Promise<void>;
-  toggling: boolean;
-  toggledBotId: string | null;
-  accounts: any[];
+  account: TradingAccount;
+  onDelete: (botId: string) => void;
+  refreshBots: () => void;
 }
 
-const BotListItem = ({
-  bot,
-  onToggle,
-  onEdit,
-  onDelete,
-  onStart,
-  onStop,
-  toggling,
-  toggledBotId,
-  accounts
-}: BotListItemProps) => {
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  
-  const account = accounts.find(acc => acc.id === bot.account_id);
-  const isToggling = toggling && toggledBotId === bot.id;
-  const isRunning = bot.status === 'active';
-  const isRealTrading = bot.trading_mode === 'real';
+const BotListItem = ({ bot, account, onDelete, refreshBots }: BotListItemProps) => {
+  const [loading, setLoading] = useState(false);
+  const [botStatus, setBotStatus] = useState<any>(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  const { toast } = useToast();
 
-  const formatProfitLoss = (pnl?: number) => {
-    if (pnl === undefined) return "0.00%";
-    return `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%`;
+  useEffect(() => {
+    if (bot.is_active) {
+      fetchBotStatus();
+      // Set up polling for active bots to refresh status every 30 seconds
+      const interval = setInterval(fetchBotStatus, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [bot.is_active]);
+
+  const fetchBotStatus = async () => {
+    try {
+      const status = await getBotStatus(bot.id);
+      setBotStatus(status);
+      setLastUpdateTime(new Date());
+    } catch (error) {
+      console.error("Error fetching bot status:", error);
+    }
+  };
+
+  const handleToggleBot = async () => {
+    try {
+      setLoading(true);
+      if (bot.is_active) {
+        await stopBot(bot.id);
+        toast({
+          title: "تم إيقاف الروبوت",
+          description: "تم إيقاف الروبوت بنجاح"
+        });
+      } else {
+        const result = await startBot(bot.id);
+        toast({
+          title: "تم تشغيل الروبوت",
+          description: result.message || "تم تشغيل الروبوت بنجاح"
+        });
+      }
+      refreshBots();
+      setTimeout(fetchBotStatus, 1000);
+    } catch (error: any) {
+      console.error("Error toggling bot:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في تغيير حالة الروبوت",
+        description: error.message
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to get status color
+  const getStatusColor = () => {
+    if (!bot.is_active) return "gray";
+    const serverStatus = botStatus?.server_status;
+    
+    if (serverStatus === 'running') return "green";
+    if (serverStatus === 'error') return "red";
+    if (serverStatus === 'stopped') return "gray";
+    return "yellow";
+  };
+
+  // Helper function to get status text
+  const getStatusText = () => {
+    if (!bot.is_active) return "متوقف";
+    const serverStatus = botStatus?.server_status;
+    
+    if (serverStatus === 'running') return "يعمل";
+    if (serverStatus === 'error') return "خطأ";
+    if (serverStatus === 'stopped') return "متوقف";
+    return "جاري التحميل...";
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      <Card className={cn(
-        "p-5 border-2 overflow-hidden",
-        isRealTrading ? "border-red-200" : "border-hamzah-200"
-      )}>
-        {/* Trading Mode Indicator */}
-        <div className="absolute top-0 right-0 p-1.5">
-          {isRealTrading ? (
-            <Badge variant="outline" className="bg-red-100 text-red-800 flex items-center gap-1">
-              <DollarSign className="h-3.5 w-3.5" />
-              <span>تداول حقيقي</span>
+    <Card className="w-full mb-4 overflow-hidden border-2 relative" 
+      style={{ borderColor: getStatusColor() === "green" ? "#10b981" : getStatusColor() === "red" ? "#ef4444" : getStatusColor() === "yellow" ? "#f59e0b" : "#6b7280" }}>
+      
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-xl">{bot.name}</CardTitle>
+          <div className="flex items-center space-x-2 space-x-reverse">
+            <Badge variant={getStatusColor() === "green" ? "success" : getStatusColor() === "red" ? "destructive" : getStatusColor() === "yellow" ? "warning" : "secondary"}>
+              {getStatusText()}
             </Badge>
-          ) : (
-            <Badge variant="outline" className="bg-blue-100 text-blue-800 flex items-center gap-1">
-              <FlaskConical className="h-3.5 w-3.5" />
-              <span>تداول تجريبي</span>
-            </Badge>
-          )}
+          </div>
         </div>
-
-        <div className="flex justify-between items-start">
+        <CardDescription>
+          {bot.description || `روبوت تداول آلي ل${account.name} (${account.platform})`}
+        </CardDescription>
+      </CardHeader>
+      
+      <CardContent className="pb-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <h3 className="text-xl font-bold">{bot.name}</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              {account?.account_name} • {account?.platform}
-            </p>
-            {bot.description && (
-              <p className="text-sm mt-2">{bot.description}</p>
-            )}
+            <h4 className="text-sm font-medium mb-1">استراتيجية التداول</h4>
+            <p className="text-sm text-muted-foreground">{bot.strategy_type === 'trend_following' ? 'تتبع الاتجاه' : 
+              bot.strategy_type === 'mean_reversion' ? 'الارتداد للمتوسط' : 
+              bot.strategy_type === 'breakout' ? 'اختراق المستويات' : 
+              bot.strategy_type === 'scalping' ? 'سكالبينج' : bot.strategy_type}</p>
           </div>
           
-          <div className="flex items-center">
-            <Switch
-              checked={bot.is_active}
-              onCheckedChange={(checked) => onToggle(bot.id, checked)}
-              disabled={isToggling}
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onEdit(bot)}
-              className="ml-2"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 mt-3">
-          {bot.trading_pairs.map((pair) => (
-            <Badge key={pair} variant="outline" className="text-xs">
-              {pair}
-            </Badge>
-          ))}
-        </div>
-
-        <Separator className="my-4" />
-
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div className="text-center">
-            <p className="text-sm text-gray-500">الربح/الخسارة</p>
-            <p className={cn(
-              "text-lg font-bold",
-              (bot.profit_loss || 0) > 0 ? "text-green-600" : (bot.profit_loss || 0) < 0 ? "text-red-600" : ""
-            )}>
-              {formatProfitLoss(bot.profit_loss)}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500">معدل الربح</p>
-            <p className="text-lg font-bold">
-              {bot.win_rate ? `${bot.win_rate.toFixed(0)}%` : "0%"}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500">إجمالي الصفقات</p>
-            <p className="text-lg font-bold">{bot.total_trades || 0}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mt-2">
           <div>
-            <Badge 
-              variant={bot.status === 'active' ? "default" : 
-                     bot.status === 'paused' ? "outline" : 
-                     bot.status === 'stopped' ? "secondary" : "destructive"}
-              className="mr-2"
-            >
-              {bot.status === 'active' ? "نشط" : 
-               bot.status === 'paused' ? "متوقف مؤقتاً" : 
-               bot.status === 'stopped' ? "متوقف" : "خطأ"}
-            </Badge>
-            <Badge variant="outline" className={cn(
-              bot.risk_level <= 3 ? "bg-green-50 text-green-700" :
-              bot.risk_level <= 7 ? "bg-yellow-50 text-yellow-700" :
-              "bg-red-50 text-red-700"
-            )}>
-              المخاطرة: {bot.risk_level <= 3 ? "منخفضة" : bot.risk_level <= 7 ? "متوسطة" : "عالية"}
-            </Badge>
+            <h4 className="text-sm font-medium mb-1">مستوى المخاطرة</h4>
+            <p className="text-sm text-muted-foreground">
+              {bot.risk_level === 'low' ? 'منخفض' : 
+               bot.risk_level === 'medium' ? 'متوسط' : 
+               bot.risk_level === 'high' ? 'مرتفع' : bot.risk_level}
+            </p>
           </div>
           
-          <div className="flex space-x-2">
-            {bot.is_active && (
-              isRunning ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onStop(bot.id)}
-                  className="border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
-                >
-                  <Pause className="h-4 w-4 mr-1" />
-                  إيقاف مؤقت
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onStart(bot.id)}
-                  className="border-green-300 bg-green-50 text-green-800 hover:bg-green-100"
-                >
-                  <Play className="h-4 w-4 mr-1" />
-                  تشغيل
-                </Button>
-              )
-            )}
-            
-            {isRealTrading && isRunning && (
-              <div className="absolute -bottom-1 left-0 right-0 bg-red-100 text-red-800 text-xs py-1 px-3 flex items-center justify-center">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                <span>تنبيه: روبوت نشط يتداول بأموال حقيقية</span>
-              </div>
-            )}
+          <div>
+            <h4 className="text-sm font-medium mb-1">زوج التداول</h4>
+            <p className="text-sm text-muted-foreground">{bot.trading_pair}</p>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium mb-1">وضع التداول</h4>
+            <p className="text-sm text-muted-foreground">
+              {bot.trading_mode === 'demo' ? 'تجريبي' : 'حقيقي'}
+              {bot.trading_mode === 'real' && (
+                <span className="mr-1 text-red-500">
+                  <AlertTriangle className="h-3 w-3 inline mr-1" />
+                  تداول حقيقي
+                </span>
+              )}
+            </p>
           </div>
         </div>
         
-        {showConfirmation && (
-          <div className="mt-4 p-3 border border-red-300 rounded-md bg-red-50">
-            <p className="text-red-800 mb-2">هل أنت متأكد من حذف هذا الروبوت؟</p>
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowConfirmation(false)}
-              >
-                إلغاء
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  onDelete(bot.id);
-                  setShowConfirmation(false);
-                }}
-              >
-                تأكيد الحذف
-              </Button>
+        {botStatus && bot.is_active && (
+          <div className="mt-4 border-t pt-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Server Status */}
+              <div>
+                <h4 className="text-sm font-medium flex items-center mb-1">
+                  <Info className="h-4 w-4 ml-1" />
+                  حالة الخادم
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  {botStatus.server_status === 'running' ? 'يعمل على الخادم' : 
+                   botStatus.server_status === 'error' ? 'خطأ في الخادم' : 
+                   botStatus.server_status === 'stopped' ? 'متوقف' : 'غير معروف'}
+                </p>
+                {botStatus.uptime && (
+                  <div className="flex items-center mt-1 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3 ml-1" />
+                    مدة التشغيل: {botStatus.uptime.formatted}
+                  </div>
+                )}
+              </div>
+              
+              {/* Last Activity */}
+              <div>
+                <h4 className="text-sm font-medium flex items-center mb-1">
+                  <BarChart2 className="h-4 w-4 ml-1" />
+                  آخر نشاط
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  {botStatus.last_activity ? (
+                    formatDistance(
+                      new Date(botStatus.last_activity),
+                      new Date(),
+                      { addSuffix: true, locale: ar }
+                    )
+                  ) : 'لم يتم تسجيل نشاط بعد'}
+                </p>
+              </div>
             </div>
+            
+            {lastUpdateTime && (
+              <div className="text-xs text-muted-foreground text-left mt-2 dir-ltr">
+                Last updated: {lastUpdateTime.toLocaleTimeString()}
+              </div>
+            )}
           </div>
         )}
-      </Card>
-    </motion.div>
+      </CardContent>
+      
+      <CardFooter className="pt-2 flex justify-between">
+        <Button variant="outline" size="sm" onClick={() => onDelete(bot.id)}>
+          حذف
+        </Button>
+        
+        <div className="flex items-center space-x-2 space-x-reverse">
+          <Label htmlFor={`bot-switch-${bot.id}`} className="ml-2">
+            {bot.is_active ? "إيقاف الروبوت" : "تشغيل الروبوت"}
+          </Label>
+          <Switch
+            id={`bot-switch-${bot.id}`}
+            checked={bot.is_active}
+            disabled={loading}
+            onCheckedChange={handleToggleBot}
+          />
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+        </div>
+      </CardFooter>
+      
+      {bot.trading_mode === 'real' && (
+        <div className="absolute top-0 left-0 right-0 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 text-xs py-1 px-2 text-center">
+          تنبيه: تداول حقيقي يؤثر على أموالك الفعلية!
+        </div>
+      )}
+    </Card>
   );
 };
 
