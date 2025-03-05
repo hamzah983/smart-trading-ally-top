@@ -17,6 +17,8 @@ const AccountsPage = () => {
     apiSecret,
     setApiSecret,
     isSaving,
+    isTestingConnection,
+    isResetting,
     isSyncing,
     isAddDialogOpen,
     setIsAddDialogOpen,
@@ -30,6 +32,8 @@ const AccountsPage = () => {
     fetchAccounts,
     handleCreateAccount,
     handleSaveCredentials,
+    handleTestConnection,
+    handleResetConnection,
     handleSyncAccount,
     handleToggleAccountStatus,
     handleChangeTradingMode
@@ -87,7 +91,11 @@ const AccountsPage = () => {
                 apiKey={apiKey}
                 apiSecret={apiSecret}
                 handleSaveCredentials={handleSaveCredentials}
+                handleTestConnection={handleTestConnection}
+                handleResetConnection={handleResetConnection}
                 isSaving={isSaving}
+                isTestingConnection={isTestingConnection}
+                isResetting={isResetting}
                 fetchAccounts={fetchAccounts}
                 handleChangeTradingMode={handleChangeTradingMode}
                 isChangingMode={isChangingMode}

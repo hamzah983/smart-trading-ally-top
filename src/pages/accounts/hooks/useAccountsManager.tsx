@@ -32,7 +32,11 @@ export const useAccountsManager = () => {
     apiSecret,
     setApiSecret,
     isSaving,
-    handleSaveCredentials
+    isTestingConnection,
+    isResetting,
+    handleTestConnection,
+    handleSaveCredentials,
+    handleResetConnection
   } = useApiCredentials(fetchAccounts);
   
   const {
@@ -57,6 +61,8 @@ export const useAccountsManager = () => {
     apiSecret,
     setApiSecret,
     isSaving,
+    isTestingConnection,
+    isResetting,
     isSyncing,
     isAddDialogOpen,
     setIsAddDialogOpen,
@@ -71,6 +77,8 @@ export const useAccountsManager = () => {
     fetchAccounts,
     handleCreateAccount,
     handleSaveCredentials,
+    handleTestConnection,
+    handleResetConnection,
     handleSyncAccount,
     handleToggleAccountStatus,
     handleChangeTradingMode

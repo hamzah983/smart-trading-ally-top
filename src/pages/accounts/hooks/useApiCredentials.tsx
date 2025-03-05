@@ -1,13 +1,14 @@
 
 import { useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
-import { saveApiCredentials, testConnection } from "@/services/binance/accountService";
+import { saveApiCredentials, testConnection, resetApiConnection } from "@/services/binance/accountService";
 
 export const useApiCredentials = (fetchAccounts: () => Promise<void>) => {
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const { toast } = useToast();
 
   const handleTestConnection = async (accountId: string) => {
@@ -127,6 +128,42 @@ export const useApiCredentials = (fetchAccounts: () => Promise<void>) => {
     }
   };
 
+  const handleResetConnection = async (accountId: string) => {
+    try {
+      setIsResetting(true);
+      
+      const result = await resetApiConnection(accountId);
+      
+      if (result.success) {
+        toast({
+          title: "تم إعادة تهيئة الاتصال بنجاح",
+          description: "يمكنك الآن إدخال مفاتيح API جديدة"
+        });
+        
+        // Clear the form fields
+        setApiKey("");
+        setApiSecret("");
+        
+        fetchAccounts();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "خطأ في إعادة تهيئة الاتصال",
+          description: result.message || "تعذر إعادة تهيئة الاتصال، حاول مرة أخرى لاحقًا"
+        });
+      }
+    } catch (error: any) {
+      console.error("Error resetting connection:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في إعادة تهيئة الاتصال",
+        description: error.message || "حدث خطأ أثناء إعادة تهيئة الاتصال"
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return {
     apiKey,
     setApiKey,
@@ -134,7 +171,9 @@ export const useApiCredentials = (fetchAccounts: () => Promise<void>) => {
     setApiSecret,
     isSaving,
     isTestingConnection,
+    isResetting,
     handleTestConnection,
-    handleSaveCredentials
+    handleSaveCredentials,
+    handleResetConnection
   };
 };

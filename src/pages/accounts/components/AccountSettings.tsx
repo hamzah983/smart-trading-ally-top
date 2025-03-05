@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Link2, AlertCircle } from "lucide-react";
+import { Loader2, Link2, AlertCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { TradingAccount } from "@/services/binance/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,8 +18,10 @@ interface AccountSettingsProps {
   setApiSecret: (apiSecret: string) => void;
   handleSaveCredentials: (accountId: string) => Promise<void>;
   handleTestConnection?: (accountId: string) => Promise<boolean>;
+  handleResetConnection?: (accountId: string) => Promise<void>;
   isSaving: boolean;
   isTestingConnection?: boolean;
+  isResetting?: boolean;
   setSelectedAccount: (account: TradingAccount | null) => void;
   fetchAccounts: () => Promise<void>;
 }
@@ -32,13 +34,16 @@ const AccountSettings = ({
   setApiSecret,
   handleSaveCredentials,
   handleTestConnection,
+  handleResetConnection,
   isSaving,
   isTestingConnection,
+  isResetting,
   setSelectedAccount,
   fetchAccounts
 }: AccountSettingsProps) => {
   const { toast } = useToast();
   const [apiTips, setApiTips] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   return (
     <div className="mt-6 border-t border-hamzah-200 dark:border-hamzah-700 pt-4">
@@ -70,6 +75,64 @@ const AccountSettings = ({
                   </Button>
                 </AlertDescription>
               </Alert>
+            )}
+            
+            {showResetConfirm ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4 ml-2" />
+                <AlertDescription>
+                  <p className="mb-2 font-bold">تأكيد إعادة تهيئة الاتصال</p>
+                  <p>سيؤدي هذا إلى حذف مفاتيح API الحالية وفصل الحساب عن المنصة. هل أنت متأكد؟</p>
+                  <div className="flex space-x-2 space-x-reverse mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowResetConfirm(false)}
+                    >
+                      إلغاء
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (handleResetConnection) {
+                          handleResetConnection(account.id);
+                          setShowResetConfirm(false);
+                        }
+                      }}
+                      disabled={isResetting}
+                    >
+                      {isResetting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          جاري إعادة التهيئة...
+                        </>
+                      ) : "تأكيد إعادة التهيئة"}
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              account.api_key && (
+                <Alert>
+                  <RefreshCw className="h-4 w-4 ml-2" />
+                  <AlertDescription>
+                    <p>
+                      {account.connection_status 
+                        ? "الحساب متصل حاليًا بمنصة التداول. إذا قمت بتغيير مفاتيح API في المنصة، يمكنك إعادة تهيئة الاتصال وإدخال المفاتيح الجديدة."
+                        : "يبدو أن هناك مشكلة في الاتصال بالمنصة. يمكنك إعادة تهيئة الاتصال وإدخال مفاتيح API جديدة."}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => setShowResetConfirm(true)}
+                    >
+                      إعادة تهيئة الاتصال
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )
             )}
             
             <div className="space-y-2">

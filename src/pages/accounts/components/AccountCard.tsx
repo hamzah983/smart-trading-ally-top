@@ -26,38 +26,46 @@ import { useToast } from "@/components/ui/use-toast";
 
 interface AccountCardProps {
   account: TradingAccount;
-  isSyncing: boolean;
   selectedAccount: TradingAccount | null;
-  accountAnalysis: any;
-  handleSyncAccount: (accountId: string) => Promise<void>;
-  handleToggleAccountStatus: (accountId: string, currentStatus: boolean) => Promise<void>;
   setSelectedAccount: (account: TradingAccount | null) => void;
-  setApiKey: (apiKey: string) => void;
-  setApiSecret: (apiSecret: string) => void;
+  isSyncing: boolean;
+  accountAnalysis: any;
   apiKey: string;
   apiSecret: string;
+  setApiKey: (apiKey: string) => void;
+  setApiSecret: (apiSecret: string) => void;
   handleSaveCredentials: (accountId: string) => Promise<void>;
+  handleTestConnection?: (accountId: string) => Promise<boolean>;
+  handleResetConnection?: (accountId: string) => Promise<void>;
   isSaving: boolean;
+  isTestingConnection?: boolean;
+  isResetting?: boolean;
   fetchAccounts: () => Promise<void>;
-  handleChangeTradingMode?: (accountId: string, mode: 'real' | 'demo') => Promise<void>;
-  isChangingMode?: boolean;
+  handleSyncAccount: (accountId: string) => Promise<void>;
+  handleToggleAccountStatus: (accountId: string) => Promise<void>;
+  handleChangeTradingMode: (accountId: string, mode: 'real' | 'demo') => Promise<void>;
+  isChangingMode: boolean;
 }
 
 const AccountCard = ({
   account,
-  isSyncing,
   selectedAccount,
-  accountAnalysis,
-  handleSyncAccount,
-  handleToggleAccountStatus,
   setSelectedAccount,
-  setApiKey,
-  setApiSecret,
+  isSyncing,
+  accountAnalysis,
   apiKey,
   apiSecret,
+  setApiKey,
+  setApiSecret,
   handleSaveCredentials,
+  handleTestConnection,
+  handleResetConnection,
   isSaving,
+  isTestingConnection,
+  isResetting,
   fetchAccounts,
+  handleSyncAccount,
+  handleToggleAccountStatus,
   handleChangeTradingMode,
   isChangingMode: externalIsChangingMode
 }: AccountCardProps) => {
@@ -295,15 +303,19 @@ const AccountCard = ({
           <AccountAnalysis accountAnalysis={accountAnalysis} />
         )}
         
-        {selectedAccount?.id === account.id && (
-          <AccountSettings 
+        {selectedAccount && selectedAccount.id === account.id && (
+          <AccountSettings
             account={account}
             apiKey={apiKey}
             apiSecret={apiSecret}
             setApiKey={setApiKey}
             setApiSecret={setApiSecret}
             handleSaveCredentials={handleSaveCredentials}
+            handleTestConnection={handleTestConnection}
+            handleResetConnection={handleResetConnection}
             isSaving={isSaving}
+            isTestingConnection={isTestingConnection}
+            isResetting={isResetting}
             setSelectedAccount={setSelectedAccount}
             fetchAccounts={fetchAccounts}
           />

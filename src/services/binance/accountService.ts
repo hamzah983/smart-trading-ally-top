@@ -635,6 +635,57 @@ export const changeTradingMode = async (
   }
 };
 
+/**
+ * Resets the API connection for a trading account
+ * This allows users to re-enter new API credentials for an account with connection issues
+ */
+export const resetApiConnection = async (accountId: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log('Resetting API connection for account:', accountId);
+    
+    // Reset the API credentials in the database
+    const { error } = await supabase
+      .from('trading_accounts')
+      .update({
+        api_key: null,
+        api_secret: null,
+        is_api_verified: false,
+        connection_status: false,
+        last_sync_time: new Date().toISOString()
+      })
+      .eq('id', accountId);
+
+    if (error) throw new Error(error.message);
+    
+    // Try to invoke the edge function, but don't fail if it's not available
+    try {
+      const { data, error: funcError } = await supabase.functions.invoke('binance-api', {
+        body: { 
+          action: 'reset_connection',
+          accountId
+        }
+      });
+
+      if (funcError) {
+        console.warn('Edge function error (non-fatal):', funcError);
+      }
+    } catch (funcError) {
+      console.warn('Failed to invoke edge function (non-fatal):', funcError);
+    }
+    
+    return {
+      success: true,
+      message: 'تم إعادة تهيئة الاتصال بنجاح'
+    };
+  } catch (error) {
+    console.error('Error resetting API connection:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to reset API connection'
+    };
+  }
+};
+
 function getClientWithTradingMode(mode: 'real' | 'demo'): any {
   if (mode === 'real') {
     return supabase;
