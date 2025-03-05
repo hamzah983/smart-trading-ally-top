@@ -103,8 +103,8 @@ export interface MarketData {
 export interface PlaceOrderParams {
   accountId: string;
   symbol: string;
-  side: 'buy' | 'sell';  // lowercase to match types in BinanceTrading.tsx
-  type: 'market' | 'limit';  // lowercase to match types in BinanceTrading.tsx
+  side: 'buy' | 'sell';  // Must be lowercase
+  type: 'market' | 'limit';  // Must be lowercase
   quantity: number;
   price?: number;
   stopPrice?: number;

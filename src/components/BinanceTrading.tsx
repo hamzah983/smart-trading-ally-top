@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,14 +85,12 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
   
   const { toast } = useToast();
 
-  // طلب البيانات الأولي
   useEffect(() => {
     if (accountId) {
       fetchAccountInfo();
       fetchPrices();
       fetchOpenOrders();
       
-      // تحديث الأسعار كل 10 ثوانٍ
       const priceInterval = setInterval(() => {
         fetchPrices();
       }, 10000);
@@ -102,7 +99,6 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
     }
   }, [accountId]);
 
-  // الحصول على معلومات الحساب
   const fetchAccountInfo = async () => {
     try {
       setError(null);
@@ -122,12 +118,10 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
     }
   };
 
-  // الحصول على الأسعار
   const fetchPrices = async () => {
     try {
       setRefreshing(prev => ({ ...prev, prices: true }));
       
-      // استخدم واجهة برمجة التطبيقات العامة لـ Binance للحصول على الأسعار
       const response = await fetch('https://api.binance.com/api/v3/ticker/price');
       if (!response.ok) {
         throw new Error('Failed to fetch prices from Binance API');
@@ -135,7 +129,6 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
       
       const allPrices = await response.json();
       
-      // فلترة الأزواج المطلوبة فقط
       const filteredPrices = allPrices.filter((price: BinancePrice) => 
         commonPairs.includes(price.symbol)
       );
@@ -153,12 +146,10 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
     }
   };
 
-  // الحصول على الطلبات المفتوحة
   const fetchOpenOrders = async () => {
     try {
       setRefreshing(prev => ({ ...prev, orders: true }));
       
-      // استخدام وظيفة Edge Function الخاصة بنا للحصول على الطلبات المفتوحة
       const { data, error } = await supabase.functions.invoke('binance-api', {
         body: { 
           action: 'get_open_orders',
@@ -185,13 +176,11 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
     }
   };
 
-  // إرسال طلب جديد
   const submitOrder = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // التحقق من المدخلات
       if (!orderQuantity || parseFloat(orderQuantity) <= 0) {
         throw new Error("الرجاء إدخال كمية صحيحة");
       }
@@ -203,8 +192,8 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
       const params: PlaceOrderParams = {
         accountId,
         symbol: selectedSymbol,
-        side: orderSide,
-        type: orderType,
+        side: orderSide.toLowerCase() as 'buy' | 'sell',
+        type: orderType.toLowerCase() as 'market' | 'limit',
         quantity: parseFloat(orderQuantity)
       };
       
@@ -223,14 +212,11 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
         description: `رقم الطلب: ${response.orderId}`
       });
       
-      // إعادة تعيين النموذج
       setOrderQuantity("");
       setOrderPrice("");
       
-      // تحديث البيانات
       fetchAccountInfo();
       fetchOpenOrders();
-      
     } catch (error: any) {
       console.error("Submit Order Error:", error);
       setError(`خطأ في إرسال الطلب: ${error.message || "تحقق من إعدادات API"}`);
@@ -244,12 +230,10 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
     }
   };
 
-  // إلغاء طلب
   const handleCancelOrder = async (symbol: string, orderId: number) => {
     try {
       setError(null);
       
-      // استخدام وظيفة Edge Function الخاصة بنا لإلغاء الطلب
       const { data, error } = await supabase.functions.invoke('binance-api', {
         body: { 
           action: 'cancel_order',
@@ -271,9 +255,7 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
         title: "تم إلغاء الطلب بنجاح"
       });
       
-      // تحديث قائمة الطلبات المفتوحة
       fetchOpenOrders();
-      
     } catch (error: any) {
       console.error("Cancel Order Error:", error);
       toast({
@@ -284,13 +266,11 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
     }
   };
 
-  // الحصول على السعر الحالي للرمز المحدد
   const getCurrentPrice = (symbol: string): string => {
     const priceInfo = prices.find(p => p.symbol === symbol);
     return priceInfo ? priceInfo.price : "0";
   };
 
-  // حساب إجمالي قيمة الطلب
   const calculateTotalOrderValue = (): string => {
     const price = orderType === "LIMIT" 
       ? parseFloat(orderPrice || "0") 
@@ -305,19 +285,15 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
     return "0";
   };
 
-  // استخدام النسبة من الرصيد المتاح
   const usePercentageOfBalance = (percentage: number) => {
     if (!accountInfo || !accountInfo.balances) return;
     
-    // الحصول على رصيد USDT للشراء، أو رصيد العملة للبيع
     const baseAsset = selectedSymbol.replace("USDT", "");
     
     let balance;
     if (orderSide === "BUY") {
-      // البحث عن رصيد USDT
       balance = accountInfo.balances.find(b => b.asset === "USDT");
     } else {
-      // البحث عن رصيد العملة الأساسية
       balance = accountInfo.balances.find(b => b.asset === baseAsset);
     }
     
@@ -326,19 +302,16 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
       const currentPrice = parseFloat(getCurrentPrice(selectedSymbol));
       
       if (orderSide === "BUY") {
-        // حساب الكمية بناءً على المبلغ المتاح
         const amount = availableAmount * (percentage / 100);
         const quantity = amount / currentPrice;
         setOrderQuantity(quantity.toFixed(6));
       } else {
-        // تحديد كمية العملة للبيع
         const quantity = availableAmount * (percentage / 100);
         setOrderQuantity(quantity.toFixed(6));
       }
     }
   };
 
-  // تحديث سعر الطلب تلقائيًا
   useEffect(() => {
     if (orderType === "LIMIT") {
       const currentPrice = getCurrentPrice(selectedSymbol);
@@ -362,7 +335,6 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
         </div>
       </div>
 
-      {/* عرض الخطأ إذا وجد */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
           <div className="flex items-start">
@@ -380,7 +352,6 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
         </div>
       )}
       
-      {/* معلومات الحساب */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">معلومات الحساب</CardTitle>
@@ -445,7 +416,6 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
         </CardContent>
       </Card>
       
-      {/* الأسعار */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">أسعار العملات الرقمية</CardTitle>
@@ -489,7 +459,6 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
         </CardContent>
       </Card>
       
-      {/* إنشاء طلب */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">إنشاء طلب جديد</CardTitle>
@@ -696,7 +665,6 @@ const BinanceTrading: React.FC<BinanceTradingProps> = ({ accountId }) => {
         </CardContent>
       </Card>
       
-      {/* الطلبات المفتوحة */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">الطلبات المفتوحة</CardTitle>
