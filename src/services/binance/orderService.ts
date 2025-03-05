@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { PlaceOrderParams, ClosePositionParams, UpdateStopLossParams } from "./types";
 
@@ -111,7 +110,7 @@ export const closePosition = async (params: ClosePositionParams): Promise<any> =
           symbol: params.symbol,
           orderId: params.orderId,
           tradeId: params.tradeId,
-          quantity: params.quantity.toString(),
+          quantity: params.quantity?.toString(),
           pnl: params.pnl,
           realTrading: true // Force real trading flag
         }
@@ -195,7 +194,7 @@ export const updateStopLoss = async (params: UpdateStopLossParams): Promise<any>
           symbol: params.symbol,
           orderId: params.orderId,
           tradeId: params.tradeId,
-          stopPrice: params.stopPrice.toString()
+          stopPrice: params.stopLossPrice.toString()
         }
       }
     });

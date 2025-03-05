@@ -99,18 +99,20 @@ export interface MarketData {
   timestamp: string;
 }
 
-// Order parameters types
+// Order parameters types - updated to include all required properties
 export interface PlaceOrderParams {
   accountId: string;
   symbol: string;
-  side: 'buy' | 'sell';
-  type: 'market' | 'limit';
+  side: 'buy' | 'sell';  // lowercase to match types in BinanceTrading.tsx
+  type: 'market' | 'limit';  // lowercase to match types in BinanceTrading.tsx
   quantity: number;
   price?: number;
   stopPrice?: number;
   timeInForce?: 'GTC' | 'IOC' | 'FOK';
   reduceOnly?: boolean;
   closePosition?: boolean;
+  stopLoss?: number;  // Added missing property
+  takeProfit?: number;  // Added missing property
 }
 
 export interface ClosePositionParams {
@@ -118,6 +120,9 @@ export interface ClosePositionParams {
   symbol: string;
   positionId?: string;
   quantity?: number;
+  orderId?: string;  // Added missing property
+  tradeId?: string;  // Added missing property
+  pnl?: number;      // Added missing property
 }
 
 export interface UpdateStopLossParams {
@@ -125,6 +130,9 @@ export interface UpdateStopLossParams {
   symbol: string;
   positionId?: string;
   stopLossPrice: number;
+  orderId?: string;  // Added missing property
+  tradeId?: string;  // Added missing property
+  stopPrice?: number; // Added missing property for consistency with usage
 }
 
 // Micro trading options
@@ -159,3 +167,4 @@ export interface AccountAnalysisResult {
   };
   warnings: string[];
 }
+

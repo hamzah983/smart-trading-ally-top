@@ -1,7 +1,6 @@
 
-// This file is maintained for backward compatibility
-// It re-exports all functionality from the new modular structure
-export * from './binance';
+// Re-export types from binance/types.ts
+export { PlaceOrderParams, ClosePositionParams, UpdateStopLossParams } from './binance/types';
 
-// Log migration message
-console.log('Using refactored Binance service modules');
+// Re-export other functionality as needed
+export * from './binance';
