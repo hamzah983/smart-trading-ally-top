@@ -189,7 +189,7 @@ const AccountCard = ({
             <div className="flex items-center space-x-2">
               <Switch
                 checked={account.is_active}
-                onCheckedChange={() => handleToggleAccountStatus(account.id, account.is_active)}
+                onCheckedChange={() => handleToggleAccountStatus(account.id)}
               />
             </div>
             <Button 

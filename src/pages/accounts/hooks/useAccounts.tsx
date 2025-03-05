@@ -59,8 +59,17 @@ export const useAccounts = () => {
     }
   };
 
-  const handleToggleAccountStatus = async (accountId: string, currentStatus: boolean) => {
+  // Modified to accept only accountId parameter, getting current status from accounts array
+  const handleToggleAccountStatus = async (accountId: string) => {
     try {
+      // Find the account in our state to get its current status
+      const account = accounts.find(acc => acc.id === accountId);
+      if (!account) {
+        throw new Error("الحساب غير موجود");
+      }
+
+      const currentStatus = account.is_active;
+
       const { error } = await supabase
         .from('trading_accounts')
         .update({ is_active: !currentStatus })
