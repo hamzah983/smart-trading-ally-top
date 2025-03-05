@@ -26,6 +26,12 @@ export interface TradingAccount {
   last_sync_time?: string;
   max_drawdown?: number;
   daily_profit_target?: number;
+  
+  // Added auto-management properties
+  auto_position_sizing?: boolean;
+  auto_strategy_selection?: boolean;
+  reinvest_profits?: boolean;
+  max_trades_per_day?: number;
 }
 
 // Trading bot types
@@ -33,7 +39,7 @@ export interface TradingBot {
   id: string;
   name: string;
   account_id: string;
-  strategy_type: 'trend_following' | 'mean_reversion' | 'breakout' | 'scalping' | string;
+  strategy_type: 'trend_following' | 'mean_reversion' | 'breakout' | 'scalping' | 'smart_auto' | string;
   trading_pair: string;
   is_active: boolean;
   risk_level: 'low' | 'medium' | 'high';
@@ -55,18 +61,39 @@ export interface TradingBot {
   strategy?: string;
   trading_pairs?: string[];
   max_open_trades?: number;
+  
+  // Added auto-management options
+  auto_management?: boolean;
+  auto_settings?: {
+    smart_position_sizing: boolean;
+    auto_strategy_rotation: boolean;
+    capital_preservation: boolean;
+    max_daily_trades: number;
+    profit_reinvestment_rate: number;
+    adaptive_risk_management: boolean;
+  };
+  multi_strategy?: boolean;
+  strategies_rotation?: {
+    enabled: boolean;
+    time_interval?: number; // in hours
+    performance_based?: boolean;
+    strategies: string[];
+  };
 }
 
 export interface BotForm {
   name: string;
   account_id: string;
-  strategy_type: 'trend_following' | 'mean_reversion' | 'breakout' | 'scalping' | string;
+  strategy_type: 'trend_following' | 'mean_reversion' | 'breakout' | 'scalping' | 'smart_auto' | string;
   trading_pair: string;
   description?: string;
   risk_level: 'low' | 'medium' | 'high';
   settings?: Record<string, any>;
   risk_parameters?: Record<string, any>;
   trading_mode: 'demo' | 'real';
+  auto_management?: boolean;
+  multi_strategy?: boolean;
+  trading_pairs?: string[];
 }
 
 // Trade types
@@ -86,6 +113,12 @@ export interface Trade {
   created_at: string;
   closed_at?: string;
   metadata?: Record<string, any>;
+  
+  // Auto-trade properties
+  auto_sized?: boolean;
+  strategy_used?: string;
+  market_conditions?: Record<string, any>;
+  auto_adjusted?: boolean;
 }
 
 // Market data types
@@ -113,6 +146,11 @@ export interface PlaceOrderParams {
   closePosition?: boolean;
   stopLoss?: number;  // Added missing property
   takeProfit?: number;  // Added missing property
+  
+  // Auto trade options
+  isAutoOrder?: boolean;
+  autoAdjust?: boolean;
+  strategyId?: string;
 }
 
 export interface ClosePositionParams {
@@ -166,5 +204,27 @@ export interface AccountAnalysisResult {
     recommendedPairs: string[];
   };
   warnings: string[];
+}
+
+// Smart strategy selection interface
+export interface SmartStrategyOptions {
+  capitalPreservation: boolean;
+  growthFocus: boolean;
+  adaptToMarketConditions: boolean;
+  preferredStrategies?: string[];
+  excludedStrategies?: string[];
+  maxDrawdownAllowed: number;
+  profitTarget: number;
+}
+
+// Auto-management settings interface
+export interface AutoManagementSettings {
+  enabled: boolean;
+  smartPositionSizing: boolean;
+  autoStrategyRotation: boolean;
+  adaptiveRiskManagement: boolean;
+  profitReinvestmentRate: number;
+  capitalPreservation: boolean;
+  maxDailyTrades: number;
 }
 
