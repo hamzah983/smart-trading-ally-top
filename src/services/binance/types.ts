@@ -17,6 +17,15 @@ export interface TradingAccount {
   max_position_size?: number;
   leverage?: number;
   account_value?: number;
+  
+  // Added missing properties
+  is_api_verified?: boolean;
+  connection_status?: boolean;
+  account_name?: string;
+  equity?: number;
+  last_sync_time?: string;
+  max_drawdown?: number;
+  daily_profit_target?: number;
 }
 
 // Trading bot types
@@ -41,6 +50,11 @@ export interface TradingBot {
   trading_mode: 'demo' | 'real';
   server_status?: 'running' | 'stopped' | 'error' | 'unknown';
   last_activity?: string;
+  
+  // Added missing properties
+  strategy?: string;
+  trading_pairs?: string[];
+  max_open_trades?: number;
 }
 
 export interface BotForm {
@@ -83,4 +97,65 @@ export interface MarketData {
   high_24h: number;
   low_24h: number;
   timestamp: string;
+}
+
+// Order parameters types
+export interface PlaceOrderParams {
+  accountId: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  type: 'market' | 'limit';
+  quantity: number;
+  price?: number;
+  stopPrice?: number;
+  timeInForce?: 'GTC' | 'IOC' | 'FOK';
+  reduceOnly?: boolean;
+  closePosition?: boolean;
+}
+
+export interface ClosePositionParams {
+  accountId: string;
+  symbol: string;
+  positionId?: string;
+  quantity?: number;
+}
+
+export interface UpdateStopLossParams {
+  accountId: string;
+  symbol: string;
+  positionId?: string;
+  stopLossPrice: number;
+}
+
+// Micro trading options
+export interface MicroTradingOptions {
+  enabledPairs: string[];
+  maxLeverage: number;
+  maxPositionSize: number;
+  riskPerTrade: number;
+}
+
+// Trading platform
+export interface TradingPlatform {
+  id: string;
+  name: string;
+  logo: string;
+  description: string;
+  url: string;
+  supported: boolean;
+}
+
+// Account analysis result
+export interface AccountAnalysisResult {
+  success: boolean;
+  message: string;
+  isRealTrading: boolean;
+  affectsRealMoney: boolean;
+  accountId?: string;
+  tradingPermissions?: string[];
+  recommendedSettings?: {
+    maxRiskPerTrade: number;
+    recommendedPairs: string[];
+  };
+  warnings: string[];
 }
