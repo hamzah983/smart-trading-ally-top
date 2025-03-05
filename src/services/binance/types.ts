@@ -74,6 +74,7 @@ export interface AccountAnalysisResult {
   message: string;
   isRealTrading: boolean;
   affectsRealMoney: boolean;
+  accountId?: string; // Added this property to fix the error
   tradingPermissions?: string[];
   recommendedSettings?: {
     maxRiskPerTrade: number;

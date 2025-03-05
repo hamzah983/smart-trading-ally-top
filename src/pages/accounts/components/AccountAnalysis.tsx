@@ -3,7 +3,7 @@ import { AlertTriangle } from "lucide-react";
 
 interface AccountAnalysisProps {
   accountAnalysis: {
-    accountId: string;
+    accountId?: string; // Made optional to match the interface
     isRealTrading: boolean;
     warnings?: string[];
     recommendedSettings?: {
