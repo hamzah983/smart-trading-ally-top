@@ -227,4 +227,3 @@ export interface AutoManagementSettings {
   capitalPreservation: boolean;
   maxDailyTrades: number;
 }
-
