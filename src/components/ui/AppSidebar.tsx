@@ -1,26 +1,64 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Home, BarChart3, Wallet, Bot, LineChart, User, Maximize, Minimize, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './button';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 
 export const AppSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { toast } = useToast();
+
+  // Check if fullscreen is active on component mount and when document changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const toggleSidebar = () => setCollapsed(!collapsed);
 
   const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-        setIsFullscreen(false);
+    try {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => {
+          setIsFullscreen(true);
+          toast({
+            title: "تم تكبير الشاشة",
+            description: "اضغط ESC للخروج من وضع ملء الشاشة"
+          });
+        }).catch(err => {
+          console.error("Error attempting to enable fullscreen:", err);
+          toast({
+            variant: "destructive",
+            title: "تعذر تكبير الشاشة",
+            description: "قد يكون متصفحك لا يدعم وضع ملء الشاشة أو تم رفض الإذن"
+          });
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().then(() => {
+            setIsFullscreen(false);
+            toast({
+              title: "تم تصغير الشاشة",
+              description: "تم الخروج من وضع ملء الشاشة"
+            });
+          });
+        }
       }
+    } catch (error) {
+      console.error("Fullscreen error:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ في تغيير وضع الشاشة",
+        description: "حدث خطأ أثناء محاولة تغيير وضع الشاشة"
+      });
     }
   };
 
@@ -82,6 +120,7 @@ export const AppSidebar = () => {
               size={collapsed ? "icon" : "default"} 
               className="w-full justify-start" 
               onClick={toggleFullscreen}
+              title={isFullscreen ? "تصغير الشاشة" : "تكبير الشاشة الى وضع ملء الشاشة"}
             >
               {isFullscreen ? 
                 <>

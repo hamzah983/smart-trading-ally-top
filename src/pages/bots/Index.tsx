@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, Sparkles } from "lucide-react";
+import { Loader2, PlusCircle, Sparkles, HelpCircle } from "lucide-react";
 import { supabase, resetSupabaseHeaders } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -10,6 +10,7 @@ import BotAutoManagementDialog from "./components/BotAutoManagementDialog";
 import AddAccountDialog from "./components/AddAccountDialog";
 import EmptyAccountsView from "./components/EmptyAccountsView";
 import AccountListItem from "./components/AccountListItem";
+import BotUsageGuide from "./components/BotUsageGuide";
 
 const BotsPage = () => {
   useEffect(() => {
@@ -22,6 +23,7 @@ const BotsPage = () => {
   const [accountAnalysis, setAccountAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showGuide, setShowGuide] = useState(true);
   
   // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -134,8 +136,20 @@ const BotsPage = () => {
               <PlusCircle className="mr-2 h-4 w-4" />
               إضافة حساب جديد
             </Button>
+            
+            <Button
+              variant="outline"
+              className="flex items-center mr-2"
+              onClick={() => setShowGuide(!showGuide)}
+              title={showGuide ? "إخفاء دليل الاستخدام" : "إظهار دليل الاستخدام"}
+            >
+              <HelpCircle className="mr-2 h-4 w-4" />
+              {showGuide ? "إخفاء الدليل" : "دليل الاستخدام"}
+            </Button>
           </div>
         </motion.div>
+
+        {showGuide && <BotUsageGuide />}
 
         {loading ? (
           <div className="flex justify-center items-center h-64">
