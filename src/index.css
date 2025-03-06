@@ -151,3 +151,58 @@ code, pre, .ltr {
   margin-right: 0.5rem;
   margin-left: 0;
 }
+
+/* Pro animation effects */
+.hover-scale {
+  @apply transition-transform duration-200 hover:scale-105;
+}
+
+.hover-lift {
+  @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+}
+
+.pulse {
+  @apply animate-pulse;
+}
+
+/* Scrollbar styling */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  @apply bg-hamzah-100 dark:bg-hamzah-800;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-hamzah-300 dark:bg-hamzah-600 rounded-full;
+}
+
+/* Card and container enhancements */
+.pro-card {
+  @apply rounded-lg border border-hamzah-200 dark:border-hamzah-700 bg-white dark:bg-hamzah-900 p-6 shadow-sm hover:shadow-md transition-all duration-300;
+}
+
+.pro-container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Button enhancements */
+.btn-gradient {
+  @apply bg-gradient-to-r from-hamzah-500 to-hamzah-600 hover:from-hamzah-600 hover:to-hamzah-700 text-white transition-all duration-300;
+}
+
+/* Text gradient */
+.text-gradient {
+  @apply bg-gradient-to-r from-hamzah-600 to-hamzah-800 dark:from-hamzah-400 dark:to-hamzah-600 bg-clip-text text-transparent;
+}
+
+/* New fullscreen styles */
+.fullscreen-enabled {
+  @apply w-screen h-screen overflow-auto p-0 m-0;
+}
