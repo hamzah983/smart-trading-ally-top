@@ -11,6 +11,7 @@ import TradesPage from './pages/trades/Index';
 import AuthPage from './pages/auth/Index';
 import NotFoundPage from './pages/NotFound';
 import ProfilePage from './pages/profile/Index';
+import './App.css';
 
 const App = () => {
   // Handle fullscreen exit with ESC key for better UX
@@ -32,7 +33,7 @@ const App = () => {
     <div className="min-h-screen bg-hamzah-50 dark:bg-hamzah-900 text-hamzah-950 dark:text-hamzah-50">
       <BrowserRouter>
         <AppSidebar />
-        <div className="transition-all duration-300 pb-20">
+        <div className="transition-all duration-300 container mx-auto px-4 sm:px-6 lg:px-8 pb-20">
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/dashboard" element={<DashboardPage />} />

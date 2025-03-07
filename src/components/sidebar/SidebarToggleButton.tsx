@@ -13,8 +13,12 @@ export const SidebarToggleButton = ({ collapsed, toggleSidebar }: SidebarToggleB
     <Button 
       variant="ghost" 
       size="icon" 
-      className="ml-auto hover:bg-hamzah-100 dark:hover:bg-hamzah-800" 
-      onClick={toggleSidebar}
+      className="hover:bg-hamzah-100 dark:hover:bg-hamzah-800" 
+      onClick={(e) => {
+        e.stopPropagation(); // Prevent sidebar click event from firing
+        toggleSidebar();
+      }}
+      title={collapsed ? "توسيع القائمة" : "تصغير القائمة"}
     >
       {collapsed ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
     </Button>
