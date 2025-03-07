@@ -4,6 +4,7 @@ import { useAccountCreation } from './useAccountCreation';
 import { useApiCredentials } from './useApiCredentials';
 import { useAccountSync } from './useAccountSync';
 import { useTradingMode } from './useTradingMode';
+import { useMT5Connection } from './useMT5Connection';
 
 export const useAccountsManager = () => {
   const { 
@@ -51,6 +52,20 @@ export const useAccountsManager = () => {
     handleChangeTradingMode
   } = useTradingMode(fetchAccounts);
 
+  const {
+    mt5Login,
+    setMt5Login,
+    mt5Password,
+    setMt5Password,
+    mt5Server,
+    setMt5Server,
+    isConnecting,
+    isFetchingAssets,
+    availableAssets,
+    handleConnectMT5,
+    fetchMT5Assets
+  } = useMT5Connection(fetchAccounts);
+
   return {
     accounts,
     loading,
@@ -81,6 +96,18 @@ export const useAccountsManager = () => {
     handleResetConnection,
     handleSyncAccount,
     handleToggleAccountStatus,
-    handleChangeTradingMode
+    handleChangeTradingMode,
+    // MT5 specific properties
+    mt5Login,
+    setMt5Login,
+    mt5Password,
+    setMt5Password,
+    mt5Server,
+    setMt5Server,
+    isConnecting,
+    isFetchingAssets,
+    availableAssets,
+    handleConnectMT5,
+    fetchMT5Assets
   };
 };
