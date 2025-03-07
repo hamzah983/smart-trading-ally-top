@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
-import { connectToMT5, getMT5Assets } from "@/services/binance/accountService";
+import { connectToMT5, getMT5Assets } from "@/services/accounts/mt5Service";
 
 export const useMT5Connection = (fetchAccounts: () => Promise<void>) => {
   const [mt5Login, setMt5Login] = useState("");
