@@ -371,7 +371,16 @@ export const getSupportedPlatforms = async (): Promise<TradingPlatform[]> => {
       logo: 'https://cryptologos.cc/logos/binance-coin-bnb-logo.png',
       description: 'أكبر منصة تداول للعملات الرقمية في العالم',
       url: 'https://www.binance.com',
-      supported: true
+      supported: true,
+      supports_forex: false,
+      supports_stocks: false,
+      supports_indices: false,
+      supports_commodities: false,
+      supports_crypto: true,
+      supports_bonds: false,
+      supports_etfs: false,
+      supports_futures: true,
+      connection_method: 'api'
     },
     {
       id: 'bybit',
@@ -379,7 +388,16 @@ export const getSupportedPlatforms = async (): Promise<TradingPlatform[]> => {
       logo: 'https://cryptologos.cc/logos/bybit-logo.png',
       description: 'منصة تداول موثوقة للعملات الرقمية والعقود الآجلة',
       url: 'https://www.bybit.com',
-      supported: true
+      supported: true,
+      supports_forex: false,
+      supports_stocks: false,
+      supports_indices: false,
+      supports_commodities: false,
+      supports_crypto: true,
+      supports_bonds: false,
+      supports_etfs: false,
+      supports_futures: true,
+      connection_method: 'api'
     },
     {
       id: 'kucoin',
@@ -387,7 +405,16 @@ export const getSupportedPlatforms = async (): Promise<TradingPlatform[]> => {
       logo: 'https://cryptologos.cc/logos/kucoin-token-kcs-logo.png',
       description: 'منصة تداول عالمية متكاملة للعملات الرقمية',
       url: 'https://www.kucoin.com',
-      supported: true
+      supported: true,
+      supports_forex: false,
+      supports_stocks: false,
+      supports_indices: false,
+      supports_commodities: false,
+      supports_crypto: true,
+      supports_bonds: false,
+      supports_etfs: false,
+      supports_futures: true,
+      connection_method: 'api'
     },
     {
       id: 'mt4',
@@ -395,7 +422,16 @@ export const getSupportedPlatforms = async (): Promise<TradingPlatform[]> => {
       logo: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Metatrader_logo.png',
       description: 'منصة تداول الفوركس والعقود مقابل الفروقات الأكثر شعبية',
       url: 'https://www.metatrader4.com',
-      supported: true
+      supported: true,
+      supports_forex: true,
+      supports_stocks: true,
+      supports_indices: true,
+      supports_commodities: true,
+      supports_crypto: false,
+      supports_bonds: true,
+      supports_etfs: true,
+      supports_futures: true,
+      connection_method: 'mt_protocol'
     },
     {
       id: 'mt5',
@@ -403,7 +439,16 @@ export const getSupportedPlatforms = async (): Promise<TradingPlatform[]> => {
       logo: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Metatrader_logo.png',
       description: 'منصة التداول المتقدمة من MetaQuotes',
       url: 'https://www.metatrader5.com',
-      supported: true
+      supported: true,
+      supports_forex: true,
+      supports_stocks: true,
+      supports_indices: true,
+      supports_commodities: true,
+      supports_crypto: true,
+      supports_bonds: true,
+      supports_etfs: true,
+      supports_futures: true,
+      connection_method: 'mt_protocol'
     }
   ];
 };
@@ -693,3 +738,4 @@ function getClientWithTradingMode(mode: 'real' | 'demo'): any {
     return resetSupabaseHeaders('demo');
   }
 }
+

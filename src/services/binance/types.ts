@@ -1,3 +1,4 @@
+
 // Trading account types
 export interface TradingAccount {
   id: string;
@@ -88,6 +89,23 @@ export interface TradingBot {
   // MT5 specific properties
   asset_class?: AssetClass;
   assets?: string[];
+}
+
+// Bot form for creating and updating bots
+export interface BotForm {
+  name: string;
+  account_id: string;
+  strategy_type: string;
+  trading_pair: string;
+  risk_level: 'low' | 'medium' | 'high';
+  description?: string;
+  trading_mode?: 'demo' | 'real';
+  asset_class?: AssetClass;
+  assets?: string[];
+  trading_pairs?: string[];
+  max_open_trades?: number;
+  auto_management?: boolean;
+  multi_strategy?: boolean;
 }
 
 // Market Asset Classes (for MT5 and other platforms)

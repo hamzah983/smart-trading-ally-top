@@ -128,9 +128,8 @@ const AddAccountDialog = ({ isOpen, onOpenChange, onSuccess }: AddAccountDialogP
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="platform">منصة التداول</Label>
+            <Label htmlFor="platform-select">منصة التداول</Label>
             <Select 
-              id="platform"
               value={newAccountPlatform}
               onValueChange={(value) => {
                 setNewAccountPlatform(value);
@@ -142,7 +141,7 @@ const AddAccountDialog = ({ isOpen, onOpenChange, onSuccess }: AddAccountDialogP
                 }
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger id="platform-select">
                 <SelectValue placeholder="اختر منصة التداول" />
               </SelectTrigger>
               <SelectContent>
