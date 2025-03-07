@@ -77,6 +77,7 @@ const TradesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [symbolFilter, setSymbolFilter] = useState('all');
+  const [selectedAssetClass, setSelectedAssetClass] = useState<string>('all');
   const { toast } = useToast();
 
   const [newTrade, setNewTrade] = useState({
@@ -114,7 +115,7 @@ const TradesPage = () => {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "خطأ في جلب الحسابات",
+        title: "خطأ في جلب ا��حسابات",
         description: error.message,
       });
     }
@@ -196,6 +197,11 @@ const TradesPage = () => {
       result = result.filter(trade => trade.symbol === symbolFilter);
     }
 
+    if (selectedAssetClass !== 'all') {
+      const assetClassSymbols = getSymbolsByAssetClass();
+      result = result.filter(trade => assetClassSymbols.includes(trade.symbol));
+    }
+
     if (dateFilter !== 'all') {
       const now = new Date();
       const dayInMs = 24 * 60 * 60 * 1000;
@@ -225,11 +231,54 @@ const TradesPage = () => {
     }
 
     setFilteredTrades(result);
-  }, [trades, searchQuery, dateFilter, symbolFilter]);
+  }, [trades, searchQuery, dateFilter, symbolFilter, selectedAssetClass]);
 
   const uniqueSymbols = trades.length 
     ? ['all', ...new Set(trades.map(trade => trade.symbol))]
     : ['all'];
+
+  const assetClasses = [
+    { id: 'all', name: 'جميع الأصول' },
+    { id: 'forex', name: 'العملات الأجنبية' },
+    { id: 'stocks', name: 'الأسهم' },
+    { id: 'indices', name: 'المؤشرات' },
+    { id: 'commodities', name: 'السلع' },
+    { id: 'crypto', name: 'العملات الرقمية' },
+    { id: 'bonds', name: 'السندات' },
+    { id: 'etfs', name: 'صناديق المؤشرات ETFs' },
+    { id: 'futures', name: 'العقود الآجلة' }
+  ];
+
+  const forexPairs = [
+    "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCHF", 
+    "USDCAD", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY"
+  ];
+
+  const stocks = [
+    "AAPL", "MSFT", "AMZN", "GOOGL", "META", 
+    "TSLA", "NVDA", "JPM", "WMT", "V"
+  ];
+
+  const indices = [
+    "US30", "SPX500", "NASDAQ", "UK100", "GER40", 
+    "JPN225", "AUS200", "FRA40", "ESP35", "HK50"
+  ];
+
+  const commodities = [
+    "XAUUSD", "XAGUSD", "XPTUSD", "XPDUSD", "USOIL", 
+    "UKOIL", "COPPER", "NGAS", "COFFEE", "SUGAR"
+  ];
+
+  const getSymbolsByAssetClass = () => {
+    switch (selectedAssetClass) {
+      case 'forex': return forexPairs;
+      case 'stocks': return stocks;
+      case 'indices': return indices;
+      case 'commodities': return commodities;
+      case 'crypto': return currencyPairs;
+      default: return [...forexPairs, ...stocks, ...indices, ...commodities, ...currencyPairs];
+    }
+  };
 
   const currencyPairs = [
     "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCHF", 
@@ -704,28 +753,26 @@ const TradesPage = () => {
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
+              <Select value={selectedAssetClass} onValueChange={setSelectedAssetClass}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="نوع الأصول" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assetClasses.map((assetClass) => (
+                    <SelectItem key={assetClass.id} value={assetClass.id}>{assetClass.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
               <Select value={symbolFilter} onValueChange={setSymbolFilter}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="جميع الرموز" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">جميع الرموز</SelectItem>
-                  {uniqueSymbols.filter(s => s !== 'all').map((symbol) => (
+                  {getSymbolsByAssetClass().map((symbol) => (
                     <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              
-              <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="فترة التداول" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الفترات</SelectItem>
-                  <SelectItem value="today">اليوم</SelectItem>
-                  <SelectItem value="yesterday">الأمس</SelectItem>
-                  <SelectItem value="week">آخر أسبوع</SelectItem>
-                  <SelectItem value="month">آخر شهر</SelectItem>
                 </SelectContent>
               </Select>
               

@@ -1,4 +1,3 @@
-
 // Trading account types
 export interface TradingAccount {
   id: string;
@@ -32,6 +31,12 @@ export interface TradingAccount {
   auto_strategy_selection?: boolean;
   reinvest_profits?: boolean;
   max_trades_per_day?: number;
+  
+  // MT5 specific properties
+  mt5_login?: string;
+  mt5_password?: string;
+  mt5_server?: string;
+  mt5_connection_status?: boolean;
 }
 
 // Trading bot types
@@ -79,21 +84,22 @@ export interface TradingBot {
     performance_based?: boolean;
     strategies: string[];
   };
+  
+  // MT5 specific properties
+  asset_class?: AssetClass;
+  assets?: string[];
 }
 
-export interface BotForm {
-  name: string;
-  account_id: string;
-  strategy_type: 'trend_following' | 'mean_reversion' | 'breakout' | 'scalping' | 'smart_auto' | string;
-  trading_pair: string;
-  description?: string;
-  risk_level: 'low' | 'medium' | 'high';
-  settings?: Record<string, any>;
-  risk_parameters?: Record<string, any>;
-  trading_mode: 'demo' | 'real';
-  auto_management?: boolean;
-  multi_strategy?: boolean;
-  trading_pairs?: string[];
+// Market Asset Classes (for MT5 and other platforms)
+export enum AssetClass {
+  FOREX = 'forex',
+  STOCKS = 'stocks',
+  INDICES = 'indices',
+  COMMODITIES = 'commodities',
+  CRYPTOCURRENCIES = 'cryptocurrencies',
+  BONDS = 'bonds',
+  ETFS = 'etfs',
+  FUTURES = 'futures'
 }
 
 // Trade types
@@ -189,6 +195,16 @@ export interface TradingPlatform {
   description: string;
   url: string;
   supported: boolean;
+  // Added MT5 specific properties
+  supports_forex: boolean;
+  supports_stocks: boolean;
+  supports_indices: boolean;
+  supports_commodities: boolean;
+  supports_crypto: boolean;
+  supports_bonds: boolean;
+  supports_etfs: boolean;
+  supports_futures: boolean;
+  connection_method: 'api' | 'websocket' | 'mt_protocol' | 'direct' | string;
 }
 
 // Account analysis result
@@ -226,4 +242,40 @@ export interface AutoManagementSettings {
   profitReinvestmentRate: number;
   capitalPreservation: boolean;
   maxDailyTrades: number;
+}
+
+// MT5 Connection Parameters
+export interface MT5ConnectionParams {
+  login: string;
+  password: string;
+  server: string;
+  enableDemo?: boolean;
+}
+
+// MT5 Asset Types (expanded)
+export interface MT5Asset {
+  symbol: string;
+  name: string;
+  assetClass: AssetClass;
+  pip?: number;
+  lotSize?: number;
+  minLot?: number;
+  maxLot?: number;
+  commission?: number;
+  spread?: number;
+  leverage?: number;
+  tradingHours?: string;
+  description?: string;
+}
+
+// MT5 Market Data
+export interface MT5MarketData extends MarketData {
+  assetClass: AssetClass;
+  bid?: number;
+  ask?: number;
+  lotSize?: number;
+  contractSize?: number;
+  point?: number;
+  tickValue?: number;
+  marginRequired?: number;
 }
