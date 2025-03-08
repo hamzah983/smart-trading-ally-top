@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { syncAccount, performRealTradingAnalysis } from "@/services/accounts/tradingService";
