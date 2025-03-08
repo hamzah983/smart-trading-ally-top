@@ -1,55 +1,28 @@
-
 import { useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
-import { changeTradingMode, performRealTradingAnalysis } from "@/services/binance/accountService";
+import { changeTradingMode } from "@/services/accounts/tradingService";
 
 export const useTradingMode = (fetchAccounts: () => Promise<void>) => {
   const [isChangingMode, setIsChangingMode] = useState(false);
   const { toast } = useToast();
 
-  const handleChangeTradingMode = async (accountId: string, mode: 'real' | 'demo') => {
+  const handleChangeTradingMode = async (accountId: string, newMode: string) => {
     try {
       setIsChangingMode(true);
       
-      const result = await changeTradingMode(accountId, mode);
+      const result = await changeTradingMode(accountId, newMode);
       
       if (result.success) {
         toast({
-          title: "تم تغيير وضع التداول",
-          description: `تم تغيير وضع التداول إلى ${mode === 'real' ? 'التداول الحقيقي' : 'وضع المحاكاة (التداول التجريبي)'}`
+          title: "تم تغيير وضع التداول بنجاح",
+          description: `تم تغيير وضع التداول إلى ${newMode === 'real' ? 'حقيقي' : 'تجريبي'}`
         });
-        
         fetchAccounts();
-        
-        if (mode === 'real') {
-          toast({
-            variant: "destructive",
-            title: "تنبيه هام",
-            description: "تم تفعيل وضع التداول الحقيقي. سيتم استخدام أموالك الفعلية!",
-            duration: 10000,
-          });
-          
-          // Directly analyze the account here
-          try {
-            const analysis = await performRealTradingAnalysis(accountId);
-            
-            if (analysis.affectsRealMoney) {
-              toast({
-                variant: "destructive",
-                title: "تنبيه: تداول حقيقي",
-                description: "هذا الحساب جاهز للتداول الحقيقي وسيؤثر على أموالك الفعلية!",
-                duration: 10000,
-              });
-            }
-          } catch (analyzeError) {
-            console.error("Error analyzing account:", analyzeError);
-          }
-        }
       } else {
         toast({
           variant: "destructive",
           title: "خطأ في تغيير وضع التداول",
-          description: result.message
+          description: result.message || "فشل تغيير وضع التداول"
         });
       }
     } catch (error: any) {
@@ -57,7 +30,7 @@ export const useTradingMode = (fetchAccounts: () => Promise<void>) => {
       toast({
         variant: "destructive",
         title: "خطأ في تغيير وضع التداول",
-        description: error.message
+        description: error.message || "حدث خطأ أثناء تغيير وضع التداول"
       });
     } finally {
       setIsChangingMode(false);

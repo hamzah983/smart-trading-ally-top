@@ -1,13 +1,16 @@
 
-// Export all functionality from the binance service modules
-export * from './types';
-export * from './accountService';
-export * from './orderService';
-export * from './tradingBotService';
+// Services related to Binance API integration
+import { 
+  placeLimitOrder, 
+  placeMarketOrder, 
+  cancelOrder,
+  getOpenOrders 
+} from './orderService';
 
-// Initialize the trading client
-import { updateSupabaseClientForTrading } from './accountService';
-
-updateSupabaseClientForTrading().catch(error => {
-  console.error('Failed to initialize trading client:', error);
-});
+// Export Binance-specific services
+export {
+  placeLimitOrder,
+  placeMarketOrder,
+  cancelOrder,
+  getOpenOrders
+};

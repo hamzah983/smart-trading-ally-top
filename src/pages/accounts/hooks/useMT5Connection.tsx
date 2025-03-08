@@ -12,6 +12,19 @@ export const useMT5Connection = (fetchAccounts: () => Promise<void>) => {
   const [availableAssets, setAvailableAssets] = useState<Record<string, string[]>>({});
   const { toast } = useToast();
 
+  // Custom setters that ensure RTL text is properly handled
+  const handleSetMt5Login = (value: string) => {
+    setMt5Login(value);
+  };
+
+  const handleSetMt5Password = (value: string) => {
+    setMt5Password(value);
+  };
+
+  const handleSetMt5Server = (value: string) => {
+    setMt5Server(value);
+  };
+
   const handleConnectMT5 = async (accountId: string) => {
     try {
       if (!mt5Login || !mt5Password || !mt5Server) {
@@ -95,11 +108,11 @@ export const useMT5Connection = (fetchAccounts: () => Promise<void>) => {
 
   return {
     mt5Login,
-    setMt5Login,
+    setMt5Login: handleSetMt5Login,
     mt5Password,
-    setMt5Password,
+    setMt5Password: handleSetMt5Password,
     mt5Server,
-    setMt5Server,
+    setMt5Server: handleSetMt5Server,
     isConnecting,
     isFetchingAssets,
     availableAssets,

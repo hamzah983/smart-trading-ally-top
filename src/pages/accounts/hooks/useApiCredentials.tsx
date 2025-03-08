@@ -1,7 +1,10 @@
-
 import { useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
-import { saveApiCredentials, testConnection, resetApiConnection } from "@/services/binance/accountService";
+import { 
+  saveApiCredentials, 
+  testConnection, 
+  resetConnection 
+} from "@/services/accounts/credentialsService";
 
 export const useApiCredentials = (fetchAccounts: () => Promise<void>) => {
   const [apiKey, setApiKey] = useState("");
@@ -132,7 +135,7 @@ export const useApiCredentials = (fetchAccounts: () => Promise<void>) => {
     try {
       setIsResetting(true);
       
-      const result = await resetApiConnection(accountId);
+      const result = await resetConnection(accountId);
       
       if (result.success) {
         toast({

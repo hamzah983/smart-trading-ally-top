@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
-import { syncAccount, performRealTradingAnalysis } from "@/services/binance/accountService";
+import { syncAccount, performRealTradingAnalysis } from "@/services/accounts/tradingService";
 
 export const useAccountSync = (fetchAccounts: () => Promise<void>) => {
   const [isSyncing, setIsSyncing] = useState(false);

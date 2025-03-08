@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
@@ -15,7 +14,9 @@ import {
   AlertTriangle, DollarSign
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { saveApiCredentials, syncAccount, performRealTradingAnalysis } from "@/services/binance/accountService";
+import { saveApiCredentials } from "@/services/accounts/credentialsService";
+import { syncAccount } from "@/services/accounts/tradingService";
+import { performRealTradingAnalysis } from "@/services/accounts/analysisService";
 
 interface AccountListItemProps {
   account: any;

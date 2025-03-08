@@ -82,8 +82,21 @@ const MT5ConnectionSettings = ({
     }
   };
 
+  // Custom input handlers to ensure RTL text input works properly
+  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMt5Login(e.target.value);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMt5Password(e.target.value);
+  };
+
+  const handleServerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMt5Server(e.target.value);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 rtl">
       {showTips && (
         <Alert>
           <AlertCircle className="h-4 w-4 ml-2" />
@@ -163,10 +176,13 @@ const MT5ConnectionSettings = ({
         <Label htmlFor="mt5-login">رقم الحساب (Login)</Label>
         <Input 
           id="mt5-login" 
+          type="text"
+          inputMode="numeric"
           dir="ltr"
           placeholder="12345678" 
           value={mt5Login}
-          onChange={(e) => setMt5Login(e.target.value)}
+          onChange={handleLoginChange}
+          className="text-left"
         />
       </div>
       
@@ -178,7 +194,8 @@ const MT5ConnectionSettings = ({
           dir="ltr"
           placeholder="كلمة مرور حساب MT5" 
           value={mt5Password}
-          onChange={(e) => setMt5Password(e.target.value)}
+          onChange={handlePasswordChange}
+          className="text-left"
         />
       </div>
       
@@ -186,10 +203,12 @@ const MT5ConnectionSettings = ({
         <Label htmlFor="mt5-server">اسم السيرفر</Label>
         <Input 
           id="mt5-server" 
+          type="text"
           dir="ltr"
           placeholder="ICMarketsSC-Live" 
           value={mt5Server}
-          onChange={(e) => setMt5Server(e.target.value)}
+          onChange={handleServerChange}
+          className="text-left"
         />
       </div>
       
