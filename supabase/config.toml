@@ -1,8 +1,1 @@
-
 project_id = "mdxoxmoxkxtpgsepoglq"
-
-[functions.trading-api]
-verify_jwt = true
-
-[functions.binance-api]
-verify_jwt = true
